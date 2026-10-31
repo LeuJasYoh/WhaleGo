@@ -216,6 +216,8 @@ AstrBot WebUI →「插件管理」→ 上传 astrbot_plugin_whalego 的 zip（�
 要点：
 - token 明文**不进** config.json（只存 sha256）；明文在 `%LOCALAPPDATA%\WhaleGo\secrets.json`（仅当前用户 ACL）。
 - `launch.allowlist` 是模型 go_launch 的**唯一启动方式**（只接受 name；默认 notepad/calc/mspaint/explorer）。
+  Edge/微信等常用程序可按 name+绝对路径格式追加（本机已加 `edge`、`weixin`）。
+  **注意：当前实现启动时加载 allowlist，修改 config 后需重启 WhaleGo.Executor 才生效**（GUI 规格里的“热生效”待后续版本）。
 - `screenshot.enabled=true` + `screenshot.defaultInclude=false` = **截图可用但不自动附图**（Q4 拍板）。
 - 热键默认 Ctrl+Alt+Shift+F12 **只触发紧急停止**，不恢复、不弹确认。
 - 不做开机自启（无 startup.* 配置组）。

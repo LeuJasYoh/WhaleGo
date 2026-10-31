@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using WhaleGo.Contracts.Abstractions;
 using WhaleGo.Contracts.Model;
 using WhaleGo.Platform.Apps;
 using WhaleGo.Platform.Windows;
@@ -150,5 +151,78 @@ public sealed class LaunchTests
         {
             // already gone
         }
+    }
+
+    [Fact]
+    public async Task AllowlistLaunch_SingleInstanceHandoff_ResolvesNewWindowByAppId()
+    {
+        // Regression for live single-instance apps (Edge/WeChat): the started stub may exit and the visible
+        // window belongs to another pid. A NEW window whose app_id matches the allowlisted exe is a success.
+        var exe = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "whoami.exe");
+        if (!File.Exists(exe))
+        {
+            _output.WriteLine("SKIP: whoami.exe unavailable");
+            return;
+        }
+
+        var expectedAppId = AppIdentity.ForExePath(exe);
+        var window = new WindowInfo(
+            "w-0000000000FAKE",
+            expectedAppId,
+            "fake handoff window",
+            "Fake",
+            424_242,
+            IsOnscreen: true,
+            IsMinimized: false,
+            IsForeground: false,
+            IsEnabled: true,
+            new RectI(0, 0, 100, 100),
+            "dwm",
+            96,
+            0,
+            "top-level");
+
+        var launcher = new AppLauncher(
+            new[] { new LaunchAllowlistEntry("whoami", exe) },
+            new NewWindowCatalog(window),
+            new WindowActivator());
+
+        var result = await launcher.LaunchAsync(new LaunchRequest("whoami", AppId: null, WaitMs: 3000), CancellationToken.None);
+        _output.WriteLine("handoff result: " + JsonSerializer.Serialize(result));
+
+        Assert.True(result.Launched, "a new window of the allowlisted app identity must count as launched");
+        Assert.NotNull(result.Window);
+        Assert.Equal(window.WindowId, result.Window!.WindowId);
+        Assert.Equal(424_242, result.Pid);
+        Assert.True(result.Settled);
+    }
+
+    /// <summary>First ListWindows call models the pre-start snapshot (empty); afterwards a new window appears.</summary>
+    private sealed class NewWindowCatalog : IWindowCatalog
+    {
+        private readonly WindowInfo _window;
+        private int _calls;
+
+        public NewWindowCatalog(WindowInfo window) => _window = window;
+
+        public IReadOnlyList<AppInfo> ListApps(ListAppsOptions options) => Array.Empty<AppInfo>();
+
+        public IReadOnlyList<WindowInfo> ListWindows(string? appId = null)
+        {
+            _calls++;
+            if (_calls <= 1)
+            {
+                return Array.Empty<WindowInfo>();
+            }
+
+            return string.IsNullOrEmpty(appId) || string.Equals(appId, _window.AppId, StringComparison.Ordinal)
+                ? new[] { _window }
+                : Array.Empty<WindowInfo>();
+        }
+
+        public WindowInfo? TryGetWindow(string windowId) =>
+            string.Equals(windowId, _window.WindowId, StringComparison.Ordinal) ? _window : null;
+
+        public bool IsForeground(string windowId) => false;
     }
 }
