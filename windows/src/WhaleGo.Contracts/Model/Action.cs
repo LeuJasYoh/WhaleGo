@@ -115,7 +115,12 @@ public sealed record HitTestResult(
     string? AutomationId,
     string? ClassName);
 
-public sealed record LaunchRequest(string? AppName, string? AppId, int WaitMs);
+/// <summary>
+/// go_launch request. <paramref name="AllowAbsolutePath"/> is the local policy escape hatch
+/// (config launch.enforceAllowlist=false): when set, AppName may be an absolute existing .exe path
+/// instead of an allowlist name. Default false; the model-facing schema is unchanged.
+/// </summary>
+public sealed record LaunchRequest(string? AppName, string? AppId, int WaitMs, bool AllowAbsolutePath = false);
 
 public sealed record LaunchResult(
     bool Launched,

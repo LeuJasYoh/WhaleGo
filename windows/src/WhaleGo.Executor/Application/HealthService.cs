@@ -54,6 +54,10 @@ public sealed class HealthService
             observation.Add("screenshot_printwindow");
         }
 
+        var launchCapabilities = config.LaunchEnforceAllowlist
+            ? LaunchCapabilities
+            : new[] { "unrestricted", "activate" };
+
         var now = _clock.NowMs;
         var uptimeMs = Math.Max(0, now - _runtime.StartedAtMs);
         return new HealthReport(
@@ -75,8 +79,9 @@ public sealed class HealthService
                 Observation: observation,
                 Actions: ActionCapabilities,
                 Targets: TargetCapabilities,
-                Launch: LaunchCapabilities,
-                LaunchAllowlist: config.LaunchAllowlistNames),
+                Launch: launchCapabilities,
+                LaunchAllowlist: config.LaunchAllowlistNames,
+                LaunchMode: config.LaunchEnforceAllowlist ? "allowlist" : "unrestricted"),
             Paused: paused,
             PauseReason: paused ? _sessions.PauseReason : null,
             PausedSinceMs: paused ? _sessions.PausedSinceMs : null,

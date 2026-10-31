@@ -78,6 +78,13 @@ public sealed class AppLauncher : IAppLauncher
         var name = request.AppName!.Trim();
         var entry = _allowlist.FirstOrDefault(candidate =>
             string.Equals(candidate.Name, name, StringComparison.OrdinalIgnoreCase));
+        if (entry is null && request.AllowAbsolutePath && IsAbsoluteExePath(name))
+        {
+            // Local policy escape hatch (launch.enforceAllowlist=false): the model may name an absolute
+            // existing .exe instead of an allowlist entry. Still no PATH lookup, no relative paths, no args.
+            entry = new LaunchAllowlistEntry(name, name);
+        }
+
         if (entry is null || !IsSafeExecutablePath(entry.Path))
         {
             return Failure();
@@ -383,6 +390,10 @@ public sealed class AppLauncher : IAppLauncher
         !string.IsNullOrWhiteSpace(path) &&
         Path.IsPathFullyQualified(path) &&
         File.Exists(path);
+
+    private static bool IsAbsoluteExePath(string? path) =>
+        IsSafeExecutablePath(path) &&
+        string.Equals(Path.GetExtension(path), ".exe", StringComparison.OrdinalIgnoreCase);
 
     private static LaunchResult Failure() => new(false, null, null, null, Activated: false, Settled: false);
 }

@@ -43,6 +43,7 @@ public static class ConfigValues
             UiTheme: GetString(values, ConfigKeys.UiTheme) ?? ConfigDefaults.UiTheme,
             LoggingLevel: GetString(values, ConfigKeys.LoggingLevel) ?? ConfigDefaults.LoggingLevel,
             LoggingDirRaw: GetString(values, ConfigKeys.LoggingDir) ?? ConfigDefaults.AuditDir,
+            LaunchEnforceAllowlist: GetBool(values, ConfigKeys.LaunchEnforceAllowlist, ConfigDefaults.LaunchEnforceAllowlist),
             LaunchAllowlist: GetLaunchEntries(values));
     }
 

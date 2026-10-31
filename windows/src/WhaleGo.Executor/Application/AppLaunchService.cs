@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -82,11 +83,20 @@ public sealed class AppLaunchService
             var name = app!.Trim();
             entry = config.LaunchAllowlist.FirstOrDefault(candidate =>
                 string.Equals(candidate.Name, name, StringComparison.OrdinalIgnoreCase));
+            if (entry is null && !config.LaunchEnforceAllowlist && IsAbsoluteExePath(name))
+            {
+                // launch.enforceAllowlist=false (local GUI policy escape hatch): absolute .exe path allowed.
+                // Still no PATH lookup, no relative paths, no arguments; audited as a write action.
+                entry = new LaunchEntryConfig(name, name);
+            }
+
             if (entry is null)
             {
                 throw WhaleGoToolException.FromCode(
                     ErrorCodes.InvalidArgument,
-                    message: $"只能启动 allowlist 内的应用（{string.Join("/", config.LaunchAllowlistNames)}）。");
+                    message: config.LaunchEnforceAllowlist
+                        ? $"只能启动 allowlist 内的应用（{string.Join("/", config.LaunchAllowlistNames)}）；关闭白名单可在 Windows 设置「执行策略」里操作。"
+                        : "启动白名单已关闭：app 必须是白名单名称或存在的绝对 .exe 路径。");
             }
         }
 
@@ -133,7 +143,11 @@ public sealed class AppLaunchService
         try
         {
             result = await _launcher.LaunchAsync(
-                new LaunchRequest(AppName: entry?.Name, AppId: hasAppId ? appId!.Trim() : null, WaitMs: waitMs),
+                new LaunchRequest(
+                    AppName: entry?.Name,
+                    AppId: hasAppId ? appId!.Trim() : null,
+                    WaitMs: waitMs,
+                    AllowAbsolutePath: !config.LaunchEnforceAllowlist),
                 cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -216,6 +230,12 @@ public sealed class AppLaunchService
 
         session.RecordAct(_clock.NowMs);
     }
+
+    private static bool IsAbsoluteExePath(string? path) =>
+        !string.IsNullOrWhiteSpace(path) &&
+        Path.IsPathFullyQualified(path) &&
+        File.Exists(path) &&
+        string.Equals(Path.GetExtension(path), ".exe", StringComparison.OrdinalIgnoreCase);
 
     private static bool IndicatesLaunchTimeout(LaunchResult result) =>
         result is { Launched: false, Activated: false, Pid: not null, Window: null };

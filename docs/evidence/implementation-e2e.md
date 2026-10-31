@@ -12,7 +12,7 @@
 | 验收块 | 结果 | 关键证据 |
 |---|---|---|
 | 构建（solution） | **PASS** | `scripts/build.ps1` → `BUILD OK (Release, 3.7 s)`；0 warnings / 0 errors |
-| .NET 单元/集成测试（4 个项目） | **PASS** | 82（Contracts）+ 112（Platform）+ 62（Executor）+ 125（Gui）= **381 passed / 0 failed / 0 skipped**（20:08 单实例启动回归后） |
+| .NET 单元/集成测试（4 个项目） | **PASS** | 82（Contracts）+ 113（Platform）+ 62（Executor）+ 125（Gui）= **382 passed / 0 failed / 0 skipped**（20:25 白名单 GUI/开关回归后） |
 | AstrBot 插件 pytest | **PASS** | **150 passed**（T5 final；uv ephemeral env，mcp==1.30.0；命令见 §7.0） |
 | 插件 ruff | **PASS** | `All checks passed!` + `24 files already formatted` |
 | 契约门禁（tools/list vs contracts） | **PASS** | 8 项断言全 PASS（§2）；`CONTRACT CHECK PASSED` |
@@ -42,6 +42,13 @@ fixtures    : windows/tests/WhaleGo.Fixtures.WinForms/bin/Release/net10.0-window
 > 全量 dotnet 测试 **381/381** 绿（Platform 新增 1 条单实例回归）；实机 `go_launch edge` / `go_launch weixin` PASS。
 > 本次仅改 `AppLauncher` 窗口解析，未改契约/协议/工具面；本文件 §2–§7 的契约门禁与 E2E 结果仍是 19:28 基线（同一工具面），
 > 未因该修复重新跑 E2E（回归由 dotnet 测试 + 实机探针覆盖）。
+
+> **2026-10-31 20:25 追加功能（用户要求，见 DEV §10.15）**：启动白名单在 GUI 里显式呈现（概览状态行 + 跳转，执行策略页开关），
+> 新增本地高风险开关 `launch.enforceAllowlist`（默认 true；关闭后 `go_launch` 接受绝对 `.exe` 路径，仍无参数，写动作审计 fail-closed），
+> `go_health.capabilities.launch_mode` 暴露 `allowlist|unrestricted`。重建后 dll sha256
+> `4f0e72e4ebabf1bec8c778483ed851b23049d17a1c85b78384ab18afc6ca1b0a`（mtime `2026-10-31T20:23:50+08:00`），
+> dotnet 测试 382/382 绿；默认开关实机拒绝绝对路径（INVALID_ARGUMENT），关闭开关的临时 headless 执行器绝对路径启动 fixtures PASS。
+> 本次为 additive（模型面 schema 不变），契约门禁/E2E 未重跑；回归由 Platform 新增测试 + 实机探针覆盖。
 
 ---
 
@@ -274,7 +281,7 @@ dotnet --version                                   # 10.0.401
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build.ps1
 #   -> BUILD OK (Release, 3.7 s); 0 warnings / 0 errors
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test.ps1
-#   -> Contracts 82 / Platform 112 / Executor 62 / Gui 125 passed (381 total, 0 failed)
+#   -> Contracts 82 / Platform 113 / Executor 62 / Gui 125 passed (382 total, 0 failed)
 #   -> plugin pytest 150 passed -> TEST OK
 cd astrbot/astrbot_plugin_whalego
 uv run --no-project --with ruff==0.14.4 ruff check .
@@ -334,7 +341,7 @@ dotnet build windows/tests/WhaleGo.Fixtures.WinForms -c Release
 
 ## 8. 结论
 
-- **P0/P1 主链路在本机真实通过**：构建、381 个 .NET 测试、150 个插件测试、契约门禁、86 条 E2E 用例（含 125% DPI 坐标点击、截图、STALE/回执语义、READONLY、CONTROLLER_BUSY、SESSION_STOPPED）、自检、容器→宿主网络链路。
+- **P0/P1 主链路在本机真实通过**：构建、382 个 .NET 测试、150 个插件测试、契约门禁、86 条 E2E 用例（含 125% DPI 坐标点击、截图、STALE/回执语义、READONLY、CONTROLLER_BUSY、SESSION_STOPPED）、自检、容器→宿主网络链路。
 - **产品 bug 2 个已由本轮门禁发现并修复**（token 验证、config 键大小写）；**审计元数据偏差 D-1 已修复并加入 E2E 回归断言**；1 个文档不一致已修（session_id 示例）。
 - **剩余未自动化项**集中在 GUI/托盘/热键/锁屏/UIPI/多 DPI/焦点串窗与插件真实容器调用（见 §5.1），需要在 GUI 就绪后按 DEPLOY/DEV + GUI.md 手工清单补跑；D-1 已修复并由 E2E 内置审计断言持续回归（9/9 PASS）。
 - 本文件后续如有补跑（GUI 双主题截图、100%/200% DPI、UIPI 手工、容器内 AstrBot 真实调用），在 §4 对应行追加"实际/结论"并注明日期。

@@ -12,6 +12,7 @@
     "标 x-internal:true 的参数由插件按 umo 注入，模型面 schema 由插件过滤掉，模型不可见/不可传。",
     "控制三态：readonly（READONLY_MODE）/ paused（PAUSED，本机 GUI）/ stopped（SESSION_STOPPED，本机或模型仅停本会话）；恢复只允许本机。",
     "截图三开关 AND（执行器 enabled、模型 include_screenshot 或执行器 defaultInclude、插件 allow_screenshot）；自身进程窗口永不观察/截图。",
+    "go_launch 默认只接受 allowlist 名称；本地配置 launch.enforceAllowlist=false（默认 true，仅本机 GUI 可改）时也接受绝对 .exe 路径，go_health.capabilities.launch_mode 暴露 allowlist|unrestricted。",
     "契约版本 1.2 对应 PROTOCOL.md v1.2；模型使用规则见 PROTOCOL §12。"
   ],
   "tools": [
@@ -400,7 +401,7 @@
     },
     {
       "name": "go_launch",
-      "description": "启动 allowlist 内应用（app）或激活已有应用主窗口（app_id），有界等待窗口出现。写动作：审计 fail-closed；不接受路径/参数；LAUNCH_TIMEOUT 禁止重试。",
+      "description": "启动 allowlist 内应用（app）或激活已有应用主窗口（app_id），有界等待窗口出现。写动作：审计 fail-closed；不接受参数；LAUNCH_TIMEOUT 禁止重试。执行器关闭启动白名单时（go_health.capabilities.launch_mode=unrestricted），app 也可传存在的绝对 .exe 路径（本地 GUI 高风险开关，默认不开）。",
       "inputSchema": {
         "type": "object",
         "properties": {

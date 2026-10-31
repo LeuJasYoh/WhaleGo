@@ -23,6 +23,8 @@ public sealed class OverviewViewModel : PageBaseViewModel
     private string _hotkeyStatusText = "未注册";
     private int _port = ConfigDefaults.ListenPort;
     private string _listenAddress = ConfigDefaults.ListenAddress;
+    private bool _allowlistEnabled = ConfigDefaults.LaunchEnforceAllowlist;
+    private int _allowlistCount;
 
     public OverviewViewModel(GuiContext context)
         : base("概览", "概览", "现在能不能被模型操作？谁在操作？", context)
@@ -32,6 +34,7 @@ public sealed class OverviewViewModel : PageBaseViewModel
         EmergencyStopCommand = new AsyncRelayCommand(EmergencyStopAsync, () => !IsBusy && _snapshot is not null);
         CopyPluginConfigCommand = new AsyncRelayCommand(CopyPluginConfigAsync, () => CanCopyPluginConfig);
         OpenWizardCommand = new RelayCommand(() => WizardRequested?.Invoke(this, EventArgs.Empty));
+        EditPolicyCommand = new RelayCommand(() => EditPolicyRequested?.Invoke(this, EventArgs.Empty));
         RefreshCommand = new AsyncRelayCommand(RefreshAsync, () => !IsBusy);
         TogglePauseCommand.ExecutionFailed += OnCommandFailed;
         EmergencyStopCommand.ExecutionFailed += OnCommandFailed;
@@ -41,6 +44,9 @@ public sealed class OverviewViewModel : PageBaseViewModel
     /// <summary>The wizard window is owned by the shell/view; the presenter only asks for it.</summary>
     public event EventHandler? WizardRequested;
 
+    /// <summary>Shell navigation request: jump to the Execution Policy page (launch allowlist editor).</summary>
+    public event EventHandler? EditPolicyRequested;
+
     public AsyncRelayCommand TogglePauseCommand { get; }
 
     public AsyncRelayCommand EmergencyStopCommand { get; }
@@ -48,6 +54,8 @@ public sealed class OverviewViewModel : PageBaseViewModel
     public AsyncRelayCommand CopyPluginConfigCommand { get; }
 
     public RelayCommand OpenWizardCommand { get; }
+
+    public RelayCommand EditPolicyCommand { get; }
 
     public AsyncRelayCommand RefreshCommand { get; }
 
@@ -66,6 +74,13 @@ public sealed class OverviewViewModel : PageBaseViewModel
     public string SessionsLine { get; private set; } = "—";
 
     public string PolicyLine { get; private set; } = string.Empty;
+
+    /// <summary>Visible summary of launch allowlist state (docs: user must be able to see it from the first screen).</summary>
+    public string AllowlistSummary => _allowlistEnabled
+        ? "启动白名单：启用 · " + _allowlistCount.ToString(System.Globalization.CultureInfo.InvariantCulture) + " 个应用（执行策略页可编辑）"
+        : "启动白名单：已关闭 · 模型可用绝对 .exe 路径启动任意程序（危险）";
+
+    public bool AllowlistEnforced => _allowlistEnabled;
 
     public string PauseResumeLabel { get; private set; } = "暂停";
 
@@ -217,8 +232,20 @@ public sealed class OverviewViewModel : PageBaseViewModel
             _hotkeyText = ConfigValue.AsString(hotkeyValue) ?? ConfigDefaults.HotkeysEmergencyStop;
         }
 
+        if (config.Values.TryGetValue(ConfigKeys.LaunchEnforceAllowlist, out var enforceValue))
+        {
+            _allowlistEnabled = ConfigValue.AsBool(enforceValue) ?? ConfigDefaults.LaunchEnforceAllowlist;
+        }
+
+        if (config.Values.TryGetValue(ConfigKeys.LaunchAllowlist, out var allowlistValue))
+        {
+            _allowlistCount = ConfigValue.AsAllowlist(allowlistValue).Count;
+        }
+
         OnPropertyChanged(nameof(ListenerSummary));
         OnPropertyChanged(nameof(HotkeyText));
+        OnPropertyChanged(nameof(AllowlistSummary));
+        OnPropertyChanged(nameof(AllowlistEnforced));
     }
 
     public void SetHotkeyStatus(string text)

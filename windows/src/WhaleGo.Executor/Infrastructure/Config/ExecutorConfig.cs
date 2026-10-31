@@ -42,6 +42,7 @@ public sealed record ExecutorConfig(
     string UiTheme,
     string LoggingLevel,
     string LoggingDirRaw,
+    bool LaunchEnforceAllowlist,
     IReadOnlyList<LaunchEntryConfig> LaunchAllowlist)
 {
     public string ListenEndpoint => ListenAddress + ":" + ListenPort.ToString(System.Globalization.CultureInfo.InvariantCulture);

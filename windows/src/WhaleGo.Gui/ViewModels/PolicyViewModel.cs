@@ -7,8 +7,8 @@ using WhaleGo.Gui.ViewModels.Fields;
 namespace WhaleGo.Gui.ViewModels;
 
 /// <summary>
-/// Execution policy page: policy.* + limits.* + screenshot.* + readonly toggle + launch.allowlist editor
-/// (docs/GUI.md 6.1 / 6.2 / 9.8). Screenshot defaults are "enabled but not auto-attached".
+/// Execution policy page: policy.* + limits.* + screenshot.* + readonly toggle + launch.allowlist editor and its
+/// local enforcement switch (docs/GUI.md 6.1 / 6.2 / 9.8). Screenshot defaults are "enabled but not auto-attached".
 /// </summary>
 public sealed class PolicyViewModel : ConfigPageViewModel
 {
@@ -20,6 +20,7 @@ public sealed class PolicyViewModel : ConfigPageViewModel
     private readonly IntField _toolTimeout;
     private readonly ChoiceField _screenshotMode;
     private readonly BoolField _screenshotEnabled;
+    private readonly BoolField _launchEnforceAllowlist;
 
     public PolicyViewModel(GuiContext context)
         : this(
@@ -48,6 +49,13 @@ public sealed class PolicyViewModel : ConfigPageViewModel
                 "默认自动附图",
                 "开启后模型省略 include_screenshot 时也会附图（仍受三开关 AND 约束）；默认关闭更省 token、更少隐私暴露",
                 "开启",
+                "关闭"),
+            new BoolField(
+                ConfigKeys.LaunchEnforceAllowlist,
+                "启用启动白名单",
+                "开启（推荐）：模型只能按 name 启动白名单内的程序。关闭后模型可直接用绝对 .exe 路径启动任意程序，" +
+                "这是本地 GUI 才能改的高风险开关（防提示注入的边界会变弱）；关闭时仍不接受参数/PATH 名。",
+                "启用",
                 "关闭"))
     {
     }
@@ -66,18 +74,20 @@ public sealed class PolicyViewModel : ConfigPageViewModel
         IntField toolTimeout,
         BoolField screenshotEnabled,
         ChoiceField screenshotMode,
-        BoolField defaultInclude)
+        BoolField defaultInclude,
+        BoolField launchEnforceAllowlist)
         : base("执行策略", "执行策略", "动作、预算、截图与启动白名单", context,
             BuildGroups(
                 readonlyField, actRate, controllerWait, stateTtl, frameTtl,
                 maxObserveElements, maxObserveChars, maxImageWidth, maxImageBytes, toolTimeout,
-                screenshotEnabled, screenshotMode, defaultInclude,
+                screenshotEnabled, screenshotMode, defaultInclude, launchEnforceAllowlist,
                 () => context.Dialogs.PickOpenFile("选择允许启动的程序", "可执行文件 (*.exe)|*.exe|所有文件 (*.*)|*.*")))
     {
         _readonly = readonlyField;
         _toolTimeout = toolTimeout;
         _screenshotMode = screenshotMode;
         _screenshotEnabled = screenshotEnabled;
+        _launchEnforceAllowlist = launchEnforceAllowlist;
         _screenshotMode.PropertyChanged += (_, args) =>
         {
             if (args.PropertyName is nameof(ChoiceField.SelectedOption) or nameof(ChoiceField.Value))
@@ -85,10 +95,21 @@ public sealed class PolicyViewModel : ConfigPageViewModel
                 OnPropertyChanged(nameof(ScreenshotModeNote));
             }
         };
+        _launchEnforceAllowlist.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName is nameof(BoolField.Value) or nameof(BoolField.StateText))
+            {
+                OnPropertyChanged(nameof(LaunchAllowlistEnforced));
+                UpdateWarnings();
+            }
+        };
         LaunchAllowlist = Fields.OfType<AllowlistField>().First();
     }
 
     public AllowlistField LaunchAllowlist { get; }
+
+    /// <summary>True when go_launch requires allowlist names (default). False = absolute .exe paths accepted (dangerous).</summary>
+    public bool LaunchAllowlistEnforced => _launchEnforceAllowlist.Value;
 
     public string ScreenshotModeNote => _screenshotMode.SelectedOption?.Note ?? string.Empty;
 
@@ -104,33 +125,27 @@ public sealed class PolicyViewModel : ConfigPageViewModel
     protected override string? ValidatePage()
     {
         UpdateWarnings();
-        if (_toolTimeout.NumericValue is > 35)
-        {
-            PageWarning = "单工具预算超过 35 秒时，插件默认 timeout(45s) 可能先超时：建议 ≤ 35s 并保持插件 timeout ≥ 预算 + 5s";
-        }
-
         return null;
     }
 
     private void UpdateWarnings()
     {
-        if (PageWarning is null && _toolTimeout.NumericValue is > 35)
-        {
-            PageWarning = "单工具预算超过 35 秒时，插件默认 timeout(45s) 可能先超时：建议 ≤ 35s";
-        }
-        else if (_toolTimeout.NumericValue is <= 35)
-        {
-            PageWarning = null;
-        }
-
+        var warnings = new List<string>();
         if (_toolTimeout.NumericValue is > 35)
         {
-            PageWarning = "单工具预算超过 35 秒时，插件默认 timeout(45s) 可能先超时：建议 ≤ 35s 并保持插件 timeout ≥ 预算 + 5s";
+            warnings.Add("单工具预算超过 35 秒时，插件默认 timeout(45s) 可能先超时：建议 ≤ 35s 并保持插件 timeout ≥ 预算 + 5s");
         }
 
+        if (!_launchEnforceAllowlist.Value)
+        {
+            warnings.Add("启动白名单已关闭：模型可以直接用绝对 .exe 路径启动任意程序（高风险，建议用完立即重新启用）");
+        }
+
+        PageWarning = warnings.Count > 0 ? string.Join("；", warnings) : null;
         OnPropertyChanged(nameof(ScreenshotModeNote));
         OnPropertyChanged(nameof(ScreenshotEnabled));
         OnPropertyChanged(nameof(ReadonlyEnabled));
+        OnPropertyChanged(nameof(LaunchAllowlistEnforced));
     }
 
     private static IReadOnlyList<ConfigFieldGroup> BuildGroups(
@@ -147,19 +162,20 @@ public sealed class PolicyViewModel : ConfigPageViewModel
         BoolField screenshotEnabled,
         ChoiceField screenshotMode,
         BoolField defaultInclude,
+        BoolField launchEnforceAllowlist,
         Func<string?> pickFile)
     {
         var allowlist = new AllowlistField(
             ConfigKeys.LaunchAllowlist,
             "启动白名单",
-            "模型只能按名称启动白名单里的程序；路径必须绝对且存在。不提供自由路径/参数输入。",
+            "模型按 name 启动的程序列表；路径必须绝对且存在。关闭上面的开关后本列表不再强制，但保留以便随时重新启用。",
             pickFile);
         return
         [
             new ConfigFieldGroup("执行策略", "热生效；只读与插件侧开关任一开启即拒绝动作", [readonlyField, actRate, controllerWait, stateTtl, frameTtl]),
             new ConfigFieldGroup("预算", "限制单次观察与动作的资源占用，全部热生效", [maxObserveElements, maxObserveChars, maxImageWidth, maxImageBytes, toolTimeout]),
             new ConfigFieldGroup("截图", "截图默认开启但不自动附图（三开关 AND）", [screenshotEnabled, screenshotMode, defaultInclude]),
-            new ConfigFieldGroup("启动白名单", "go_launch 的唯一入口", [allowlist]),
+            new ConfigFieldGroup("启动白名单", "go_launch 的唯一入口；关闭开关 = 允许绝对 .exe 路径（危险）", [launchEnforceAllowlist, allowlist]),
         ];
     }
 }

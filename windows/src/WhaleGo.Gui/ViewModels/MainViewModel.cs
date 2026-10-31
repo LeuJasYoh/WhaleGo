@@ -310,6 +310,7 @@ public sealed class MainViewModel : ObservableObject
     {
         Overview.WizardRequested += (_, _) => WizardRequested?.Invoke(this, EventArgs.Empty);
         Connection.WizardRequested += (_, _) => WizardRequested?.Invoke(this, EventArgs.Empty);
+        Overview.EditPolicyRequested += (_, _) => CurrentPage = Policy;
     }
 
     private void HandleFailure(string operation, Exception exception)

@@ -28,6 +28,7 @@ public sealed class ConfigService : IConfigStore
         ConfigKeys.HotkeysEnabled, ConfigKeys.HotkeysEmergencyStop, ConfigKeys.HotkeysOpenSettings,
         ConfigKeys.UiNotificationsLevel, ConfigKeys.UiTheme,
         ConfigKeys.LoggingLevel, ConfigKeys.LoggingDir, ConfigKeys.LaunchAllowlist,
+        ConfigKeys.LaunchEnforceAllowlist,
     ];
 
     private readonly object _lock = new();

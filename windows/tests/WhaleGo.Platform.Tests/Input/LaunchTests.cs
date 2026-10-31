@@ -154,6 +154,39 @@ public sealed class LaunchTests
     }
 
     [Fact]
+    public async Task AllowlistLaunch_AbsolutePath_OnlyWhenRequestOptsIn()
+    {
+        if (!FixtureReady())
+        {
+            return;
+        }
+
+        var exe = TestSupport.FixtureExe;
+        var launcher = new AppLauncher(Array.Empty<LaunchAllowlistEntry>(), new EnumWindowCatalog(), new WindowActivator());
+
+        // Default (enforce allowlist): an unlisted absolute path is a failure.
+        var blocked = await launcher.LaunchAsync(
+            new LaunchRequest(exe, AppId: null, WaitMs: 800, AllowAbsolutePath: false), CancellationToken.None);
+        Assert.True(AppLauncher.IndicatesLaunchFailure(blocked), "absolute path must be rejected when allowlist enforcement is on");
+
+        // Opt-in (launch.enforceAllowlist=false): the same absolute path starts the fixture.
+        int? launchedPid = null;
+        try
+        {
+            var allowed = await launcher.LaunchAsync(
+                new LaunchRequest(exe, AppId: null, WaitMs: 20000, AllowAbsolutePath: true), CancellationToken.None);
+            _output.WriteLine("absolute-path result: " + JsonSerializer.Serialize(allowed));
+            launchedPid = allowed.Pid;
+            Assert.True(allowed.Launched, "absolute path must launch when the request opts in");
+            Assert.NotNull(allowed.Window);
+        }
+        finally
+        {
+            KillProcess(launchedPid);
+        }
+    }
+
+    [Fact]
     public async Task AllowlistLaunch_SingleInstanceHandoff_ResolvesNewWindowByAppId()
     {
         // Regression for live single-instance apps (Edge/WeChat): the started stub may exit and the visible

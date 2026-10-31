@@ -141,7 +141,8 @@
     "actions": ["click","set_value","type","key","scroll"],
     "targets": ["element","coordinate"],
     "launch": ["allowlist","activate"],
-    "launch_allowlist": ["notepad","calc","mspaint","explorer"]
+    "launch_allowlist": ["notepad","calc","mspaint","explorer"],
+    "launch_mode": "allowlist"
   },
   "paused": false,
   "pause_reason": null,
@@ -449,6 +450,11 @@
 
 - **安全边界**：模型只能按 allowlist 名称启动（配置 `launch.allowlist`，默认 notepad/calc/mspaint/explorer；
   GUI 可编辑）；**不接受 PATH 名/相对路径/arguments**（P2 再扩模型面）。
+- **本地策略开关（additive，默认行为不变）**：执行器配置 `launch.enforceAllowlist`（默认 `true`；只在本机 GUI
+  「执行策略 → 启动白名单」可改）。关闭后，`app` 不是白名单名称时执行器接受**存在的绝对 `.exe` 路径**
+  （仍不接受 PATH 名/相对路径/任意参数，仍是审计 fail-closed 的写动作）；`go_health.capabilities.launch` 会含
+  `"unrestricted"`，`capabilities.launch_mode` 为 `"allowlist"` 或 `"unrestricted"`。这是高风险本地设置
+  （削弱提示注入防护），模型面 schema 不变、模型无法自行开启，GUI 保存时给出显式警告。
 - **写动作**：审计 fail-closed（返回前落盘）；需要激活已有窗口时获取 controller lease。
 
 返回：

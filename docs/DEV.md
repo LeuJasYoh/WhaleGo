@@ -99,7 +99,7 @@ dotnet test windows/tests/WhaleGo.Contracts.Tests -c Release
 ```
 
 - `scripts/test.ps1` 还会用 uv 临时环境跑插件 pytest：`uv run --no-project --with pytest --with pytest-asyncio --with mcp==1.30.0 python -m pytest -q`（不依赖插件自身 .venv，与容器 mcp 版本一致）；`uv` 缺失时跳过并警告，不阻塞 dotnet。
-- 本机最终实测（final 二进制）：`Contracts 82 / Platform 112 / Executor 62 / Gui 125 = 381 passed, 0 failed, 0 skipped`；插件 `150 passed`（T5 final，命令见 §2.3）；`TEST OK`。
+- 本机最终实测（final 二进制）：`Contracts 82 / Platform 113 / Executor 62 / Gui 125 = 382 passed, 0 failed, 0 skipped`；插件 `150 passed`（T5 final，命令见 §2.3）；`TEST OK`。
 - Platform/Gui 的部分测试需要 Windows 桌面/交互会话；CI 里无法满足时应跳过（测试内用条件跳过，不要静默通过）。
 - **测试执行顺序（必须）**：`scripts/test.ps1` 先 `dotnet build`，再按 Contracts → Platform → Executor → Gui **串行**逐项目 `dotnet test --no-build`，最后插件 pytest。原因：Platform 输入测试会抢占/恢复前台窗口、Gui 的 STA 测试会创建窗口，多个 test host 并行会互相干扰（实测偶发 110/111，重跑即过）。
 - 测试分层与 seam 见 ARCHITECTURE §3.14：
@@ -355,7 +355,7 @@ Python（插件，见 ARCHITECTURE §4）：
 9. **夹具不在最初的 sln 中**：由 Lead 加入 `windows/WhaleGo.sln`（T6 不编辑 sln）；当前 solution 已包含两个夹具项目。**状态：已解决**。
 10. **文档版本**：DEPLOY/DEV 为新增实现文档 v0.1；既有文档版本不变（DESIGN/ARCH/README v0.5、PROTOCOL v1.2、GUI v0.3、contract_version 1.2）。**状态：符合约束**。
 11. **证据基线（已补齐）**：宿主/容器环境与 C#↔Python MCP 1.30 往返证据在 `docs/evidence/container-env.md`；
-    实现验收（381 .NET 测试 / 150 插件测试 / 契约门禁 8 项 / E2E 86 用例 + 9 项审计断言 / 自检 / 容器链路 / 审计隐私）
+    实现验收（382 .NET 测试 / 150 插件测试 / 契约门禁 8 项 / E2E 86 用例 + 9 项审计断言 / 自检 / 容器链路 / 审计隐私）
     在 `docs/evidence/implementation-e2e.md`，未能自动化的项如实列“MANUAL/PARTIAL”。**状态：已记录（2026-10-31）**。
 12. **审计输入元数据（已修复）**：`go_act type/set_value` 的审计记录现在写入 `text_length`（Unicode rune 数）+
     `text_sha256_prefix`（SHA-256 hex 前 8 位），仍无明文。修复前为 null（曾报 T4）；D-1 修复后由 `scripts/e2e.ps1`
@@ -371,6 +371,14 @@ Python（插件，见 ARCHITECTURE §4）：
    `go_launch edge`（激活已有 Edge）/ `go_launch weixin`（激活已有微信）均 PASS。另：`launch.allowlist` 当前在启动时
    注入 Platform（`AppLauncher` 单例），**修改后需重启执行器**（GUI 规格称热生效；差异记录于此，P2 再改热加载）。
    **状态：已修并实测**。
+15. **启动白名单 GUI 暴露 + 可关闭（2026-10-31 20:25）**：白名单本来就存在（D4），但此前只在「执行策略」页里，概览不可见。
+   现在：概览卡片新增「启动白名单：启用 · N 个应用」状态行 +「设置启动白名单」跳转按钮；执行策略页新增
+   `launch.enforceAllowlist` 开关（默认开，GUI 保存时显示高风险警告）。关闭后执行器接受**存在的绝对 `.exe` 路径**
+   （仍是写动作、审计 fail-closed、无参数；`go_health.capabilities.launch_mode=unrestricted`，`capabilities.launch`
+   含 `"unrestricted"`）；模型面 schema 不变。该开关热生效（写动作每次读取配置），但**白名单列表本身仍是启动时加载，
+   增删条目需重启执行器**。验证：默认拒绝路径（`INVALID_ARGUMENT` 含白名单列表 + 关闭提示）；临时 headless 配置
+   `enforceAllowlist=false` + 绝对路径启动 fixtures PASS；Platform 新增绝对路径回归测试；全量 382 测试绿。
+   **状态：已实现并实测**。
 
 ---
 

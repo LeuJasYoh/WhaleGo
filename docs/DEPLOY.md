@@ -217,7 +217,10 @@ AstrBot WebUI →「插件管理」→ 上传 astrbot_plugin_whalego 的 zip（�
 - token 明文**不进** config.json（只存 sha256）；明文在 `%LOCALAPPDATA%\WhaleGo\secrets.json`（仅当前用户 ACL）。
 - `launch.allowlist` 是模型 go_launch 的**唯一启动方式**（只接受 name；默认 notepad/calc/mspaint/explorer）。
   Edge/微信等常用程序可按 name+绝对路径格式追加（本机已加 `edge`、`weixin`）。
-  **注意：当前实现启动时加载 allowlist，修改 config 后需重启 WhaleGo.Executor 才生效**（GUI 规格里的“热生效”待后续版本）。
+  编辑入口：Windows 端「WhaleGo 设置 → 执行策略 → 启动白名单」（可增删/校验路径）；概览页也会显示当前状态并提供跳转。
+  **注意：当前实现启动时加载 allowlist，修改后需重启 WhaleGo.Executor 才生效**（GUI 规格里的“热生效”待后续版本）。
+- 若完全不想维护白名单：同一页可关闭「启用启动白名单」开关（配置 `launch.enforceAllowlist=false`，默认开启）。
+  关闭后模型可直接用**绝对 `.exe` 路径**启动程序（仍不接受参数/PATH 名）；这是高风险本地开关，只在确实信任模型输入时临时开启，GUI 会显示警告。
 - `screenshot.enabled=true` + `screenshot.defaultInclude=false` = **截图可用但不自动附图**（Q4 拍板）。
 - 热键默认 Ctrl+Alt+Shift+F12 **只触发紧急停止**，不恢复、不弹确认。
 - 不做开机自启（无 startup.* 配置组）。
