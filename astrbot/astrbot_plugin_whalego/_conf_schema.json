@@ -1,0 +1,59 @@
+{
+  "url": {
+    "description": "WhaleGo 执行器的 MCP Streamable HTTP 端点",
+    "type": "string",
+    "default": "http://host.docker.internal:8765/mcp",
+    "hint": "默认 Docker Desktop 下容器访问宿主；Windows 端设置窗口「连接与配对 - 复制插件配置」可直接生成。"
+  },
+  "token": {
+    "description": "Bearer Token（wg_ 前缀）",
+    "type": "string",
+    "default": "",
+    "secret": true,
+    "hint": "从 Windows 端「设置 → 连接与配对」复制；只遮罩显示、不写日志。token 错误会返回 ERROR[AUTH_FAILED]。"
+  },
+  "timeout": {
+    "description": "单次工具调用超时（秒）",
+    "type": "int",
+    "default": 45,
+    "hint": "启动时自动 clamp 到 AstrBot tool_call_timeout-5s；必须大于执行器整体预算（≤40s），否则动作可能先在插件侧超时。"
+  },
+  "readonly": {
+    "description": "只读模式：禁用 go_act / go_launch",
+    "type": "bool",
+    "default": false,
+    "hint": "开启后动作工具返回 ERROR[READONLY_MODE]；观察工具仍可用。管理员可用 /whalego readonly on|off 切换。"
+  },
+  "admin_only": {
+    "description": "仅管理员可调用 7 个 go_* 工具",
+    "type": "bool",
+    "default": true,
+    "hint": "AstrBot 对非内置工具默认权限是 member；务必在 WebUI → 扩展 → 组件把 7 个工具权限设为 admin。"
+  },
+  "allow_screenshot": {
+    "description": "允许 go_observe 返回截图",
+    "type": "bool",
+    "default": true,
+    "hint": "默认开（Q4）。仍受三开关 AND：执行器 screenshot.enabled 且模型 include_screenshot=true（或执行器 defaultInclude=true）且此项为 true；默认不自动附图。"
+  },
+  "inject_usage_prompt": {
+    "description": "向模型注入 WhaleGo 使用规则（prompts/usage.md）",
+    "type": "bool",
+    "default": true,
+    "hint": "经 on_llm_request 注入 ≤15 行固定规则（动作后重新观察 / possibly_sent 禁止重试 / 截图隐私等）。"
+  },
+  "allowed_tools": {
+    "description": "工具白名单（7 个 go_* 工具）",
+    "type": "list",
+    "default": [
+      "go_health",
+      "go_apps",
+      "go_windows",
+      "go_observe",
+      "go_act",
+      "go_launch",
+      "go_stop"
+    ],
+    "hint": "被移除的工具仍可能出现在模型工具列表里，但调用会被插件拒绝（ERROR[INVALID_ARGUMENT]）。"
+  }
+}

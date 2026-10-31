@@ -1,0 +1,212 @@
+<UserControl x:Class="WhaleGo.Gui.Views.DiagnosticsPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:WhaleGo.Gui.Views.Controls">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <StackPanel>
+            <TextBlock Text="诊断与日志" Style="{DynamicResource Text.PageTitle}" />
+            <TextBlock Text="现在能不能被操作、谁在操作、连不上卡在哪；只显示元数据，不含参数/输入/截图/完整会话 id"
+                       Style="{DynamicResource Text.PageSubtitle}" />
+        </StackPanel>
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,0,10,0" Margin="0,16,0,0">
+            <StackPanel>
+                <Border Style="{DynamicResource Card}" Margin="0,0,0,16">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="状态详情" Style="{DynamicResource Text.CardTitle}" VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                <Button Content="刷新" Style="{DynamicResource Button.Secondary}" Height="28" MinWidth="0" Padding="10,0"
+                                        Command="{Binding RefreshAllCommand}" AutomationProperties.Name="刷新诊断数据" />
+                                <Button Content="重启执行器" Style="{DynamicResource Button.Ghost}" Height="28" MinWidth="0" Padding="10,0"
+                                        Margin="8,0,0,0" Command="{Binding RequestRestartCommand}"
+                                        AutomationProperties.Name="请求重启执行器" />
+                            </StackPanel>
+                        </Grid>
+                        <ItemsControl ItemsSource="{Binding StatusDetails}" Margin="0,8,0,0">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,3">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="130" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="{Binding Label}" Style="{DynamicResource Text.Caption}" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Value}" Style="{DynamicResource Text.Body}" FontSize="12"
+                                                   TextWrapping="Wrap" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{DynamicResource Card}" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="最近请求（最多 50 条，仅本机内存，重启清空）" Style="{DynamicResource Text.CardTitle}" />
+                        <Border Style="{DynamicResource Table.Header}" Margin="0,8,0,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="70" />
+                                    <ColumnDefinition Width="110" />
+                                    <ColumnDefinition Width="80" />
+                                    <ColumnDefinition Width="80" />
+                                    <ColumnDefinition Width="150" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="时间" Style="{DynamicResource Table.HeaderText}" />
+                                <TextBlock Grid.Column="1" Text="工具" Style="{DynamicResource Table.HeaderText}" />
+                                <TextBlock Grid.Column="2" Text="会话" Style="{DynamicResource Table.HeaderText}" />
+                                <TextBlock Grid.Column="3" Text="耗时" Style="{DynamicResource Table.HeaderText}" />
+                                <TextBlock Grid.Column="4" Text="结果" Style="{DynamicResource Table.HeaderText}" />
+                                <TextBlock Grid.Column="5" Text="备注" Style="{DynamicResource Table.HeaderText}" />
+                            </Grid>
+                        </Border>
+                        <ItemsControl ItemsSource="{Binding RecentRequests}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{DynamicResource Table.RowHover}">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="70" />
+                                                <ColumnDefinition Width="110" />
+                                                <ColumnDefinition Width="80" />
+                                                <ColumnDefinition Width="80" />
+                                                <ColumnDefinition Width="150" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding Time}" Style="{DynamicResource Table.Cell.Mono}" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Tool}" Style="{DynamicResource Table.Cell}" />
+                                            <TextBlock Grid.Column="2" Text="{Binding SessionTag}" Style="{DynamicResource Table.Cell.Mono}" />
+                                            <TextBlock Grid.Column="3" Text="{Binding ElapsedMs}" Style="{DynamicResource Table.Cell.Mono}" />
+                                            <TextBlock Grid.Column="4" Text="{Binding Result}" Style="{DynamicResource Table.Cell}" />
+                                            <TextBlock Grid.Column="5" Text="{Binding Note}" Style="{DynamicResource Table.Cell.Mono}" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{DynamicResource Card}" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="工具计数（进程启动至今，不落盘）" Style="{DynamicResource Text.CardTitle}" />
+                        <Border Style="{DynamicResource Table.Header}" Margin="0,8,0,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="140" />
+                                    <ColumnDefinition Width="90" />
+                                    <ColumnDefinition Width="110" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="工具" Style="{DynamicResource Table.HeaderText}" />
+                                <TextBlock Grid.Column="1" Text="总调用" Style="{DynamicResource Table.HeaderText}" />
+                                <TextBlock Grid.Column="2" Text="当前速率" Style="{DynamicResource Table.HeaderText}" />
+                                <TextBlock Grid.Column="3" Text="说明" Style="{DynamicResource Table.HeaderText}" />
+                            </Grid>
+                        </Border>
+                        <ItemsControl ItemsSource="{Binding ToolCounters}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{DynamicResource Table.RowHover}">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="140" />
+                                                <ColumnDefinition Width="90" />
+                                                <ColumnDefinition Width="110" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding Tool}" Style="{DynamicResource Table.Cell.Mono}" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Total}" Style="{DynamicResource Table.Cell.Mono}" />
+                                            <TextBlock Grid.Column="2" Text="{Binding RateText}" Style="{DynamicResource Table.Cell.Mono}" />
+                                            <TextBlock Grid.Column="3" Text="{Binding Note}" Style="{DynamicResource Table.Cell}" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Text="成功率/错误码细分：IExecutorControl 只暴露每工具总数；错误码可结合上表「最近请求」查看。"
+                                   Style="{DynamicResource Text.Hint}" Margin="0,8,0,0" />
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{DynamicResource Card}" Margin="0,0,0,16">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="审计末尾 200 行（只读）" Style="{DynamicResource Text.CardTitle}" VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                <Button Content="加载审计" Style="{DynamicResource Button.Secondary}" Height="28" MinWidth="0" Padding="10,0"
+                                        Command="{Binding LoadAuditCommand}" AutomationProperties.Name="加载审计末尾" />
+                                <Button Content="复制" Style="{DynamicResource Button.Ghost}" Height="28" MinWidth="0" Padding="10,0"
+                                        Margin="8,0,0,0" Command="{Binding CopyAuditCommand}" AutomationProperties.Name="复制审计内容" />
+                                <Button Content="打开审计目录" Style="{DynamicResource Button.Ghost}" Height="28" MinWidth="0" Padding="10,0"
+                                        Margin="8,0,0,0" Command="{Binding OpenAuditCommand}" AutomationProperties.Name="打开审计目录" />
+                                <Button Content="打开日志目录" Style="{DynamicResource Button.Ghost}" Height="28" MinWidth="0" Padding="10,0"
+                                        Margin="8,0,0,0" Command="{Binding OpenLogsCommand}" AutomationProperties.Name="打开日志目录" />
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock Text="审计不含输入明文 / 剪贴板 / 截图字节 / token。" Style="{DynamicResource Text.Hint}" Margin="0,6,0,8" />
+                        <TextBox Style="{DynamicResource Input.MonoBox}" Height="200" Text="{Binding AuditTail, Mode=OneWay}"
+                                 AutomationProperties.Name="审计末尾内容" />
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{DynamicResource Card}" Margin="0,0,0,16">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="一键自检" Style="{DynamicResource Text.CardTitle}" />
+                                <TextBlock Text="{Binding SelfCheckSummary}" Style="{DynamicResource Text.Caption}" Margin="0,4,0,0" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Content="运行自检" Style="{DynamicResource Button.Primary}" Command="{Binding RunSelfCheckCommand}"
+                                        AutomationProperties.Name="运行一键自检" />
+                                <Button Content="复制报告" Style="{DynamicResource Button.Secondary}" Margin="8,0,0,0"
+                                        Command="{Binding CopyReportCommand}" AutomationProperties.Name="复制自检报告" />
+                            </StackPanel>
+                        </Grid>
+                        <ItemsControl ItemsSource="{Binding SelfCheckItems}" Margin="0,10,0,0">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="26" />
+                                            <ColumnDefinition Width="150" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="{Binding Badge}" Style="{DynamicResource Text.Caption}" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Name}" Style="{DynamicResource Text.SectionTitle}" FontSize="12" />
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="{Binding Detail}" Style="{DynamicResource Text.Caption}" TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding Advice}" Style="{DynamicResource Text.Hint}"
+                                                       Visibility="{Binding HasAdvice, Converter={StaticResource BoolToVisibility}}" />
+                                        </StackPanel>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Text="{Binding LastQuickAction}" Style="{DynamicResource Text.Caption}" Margin="0,8,0,0"
+                                   Foreground="{DynamicResource Brush.Success}"
+                                   Visibility="{Binding HasLastQuickAction, Converter={StaticResource BoolToVisibility}}" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

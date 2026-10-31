@@ -1,0 +1,21 @@
+<UserControl x:Class="WhaleGo.Gui.Views.PolicyPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:WhaleGo.Gui.Views.Controls"
+             xmlns:vm="clr-namespace:WhaleGo.Gui.ViewModels">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <StackPanel>
+            <TextBlock Text="执行策略" Style="{DynamicResource Text.PageTitle}" />
+            <TextBlock Text="动作、预算、截图与启动白名单；标「重启生效」的项保存后需重启执行器"
+                       Style="{DynamicResource Text.PageSubtitle}" />
+        </StackPanel>
+        <controls:InlineBanner Grid.Row="1" Margin="0,14,0,14" Severity="Info" Title="截图隐私边界"
+                               Message="{x:Static vm:PolicyViewModel.ScreenshotPrivacyNote}" />
+        <controls:ConfigForm Grid.Row="2" />
+    </Grid>
+</UserControl>

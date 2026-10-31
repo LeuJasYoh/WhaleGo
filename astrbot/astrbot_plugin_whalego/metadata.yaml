@@ -1,0 +1,15 @@
+name: astrbot_plugin_whalego
+display_name: WhaleGo
+desc: >-
+  通过 MCP 连接 Windows 上的 WhaleGo Executor，让模型观察并操作桌面
+  （UIA 观察/截图/点击/输入；go_ 是 WhaleGo 品牌前缀，不是 Go 语言）。
+short_desc: 给 AI 一双手，让它操作你的 Windows 桌面
+version: 0.1.0
+author: WhaleGo
+repo: https://github.com/whalego/whalego
+astrbot_version: ">=4.29,<5"
+tags:
+  - mcp
+  - computer-use
+  - windows
+  - automation

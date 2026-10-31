@@ -1,0 +1,25 @@
+<Window x:Class="WhaleGo.Gui.Views.Dialogs.ConfirmDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="确认" Width="480" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False" UseLayoutRounding="True">
+    <StackPanel Margin="24">
+        <TextBlock x:Name="HeadingText" Style="{DynamicResource Text.PageTitle}" FontSize="17" TextWrapping="Wrap" />
+        <TextBlock x:Name="MessageText" Style="{DynamicResource Text.Body}" Margin="0,10,0,0" />
+        <Border x:Name="DetailBox" Style="{DynamicResource Card.Tight}" Margin="0,12,0,0" Visibility="Collapsed">
+            <TextBlock x:Name="DetailText" Style="{DynamicResource Text.Caption}" />
+        </Border>
+        <StackPanel x:Name="TypedPanel" Visibility="Collapsed" Margin="0,14,0,0">
+            <TextBlock Text="请输入下面的短语以确认：" Style="{DynamicResource Text.Caption}" />
+            <TextBlock x:Name="RequiredLabel" Style="{DynamicResource Text.Mono}" Margin="0,4,0,0" />
+            <TextBox x:Name="TypedInput" Style="{DynamicResource Input.TextBox}" Margin="0,8,0,0"
+                     AutomationProperties.Name="风险确认短语" />
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+            <Button x:Name="CancelButton" Content="取消" Style="{DynamicResource Button.Secondary}"
+                    Margin="0,0,8,0" IsCancel="True" AutomationProperties.Name="取消（安全默认）" />
+            <Button x:Name="ConfirmButton" Content="确定" Style="{DynamicResource Button.Primary}"
+                    AutomationProperties.Name="确认" />
+        </StackPanel>
+    </StackPanel>
+</Window>

@@ -32,3 +32,10 @@ logs/
 .env.*
 secrets.json
 control-state.json
+
+# ── 开发临时目录 / 测试产物 ────────────────────────────────
+.tmp/
+artifacts/
+**/TestResults/
+**/.pytest_cache/
+**/.ruff_cache/

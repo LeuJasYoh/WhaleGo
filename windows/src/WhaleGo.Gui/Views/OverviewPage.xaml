@@ -1,0 +1,93 @@
+<UserControl x:Class="WhaleGo.Gui.Views.OverviewPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:WhaleGo.Gui.Views.Controls">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <StackPanel>
+            <TextBlock Text="概览" Style="{DynamicResource Text.PageTitle}" />
+            <TextBlock Text="现在能不能被模型操作？谁在操作？" Style="{DynamicResource Text.PageSubtitle}" />
+        </StackPanel>
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,0,10,0" Margin="0,16,0,0">
+            <StackPanel>
+                <Border Style="{DynamicResource Card}">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <controls:StatusPill Level="{Binding Level}" Label="{Binding StatusLabel}"
+                                                     VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding StatusDetail}" Style="{DynamicResource Text.Secondary}"
+                                           Margin="12,0,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                           MaxWidth="380" />
+                            </StackPanel>
+                            <TextBlock Grid.Column="1" Text="{Binding VersionLine}" Style="{DynamicResource Text.Hint}"
+                                       VerticalAlignment="Center" />
+                        </Grid>
+                        <Border Style="{DynamicResource Divider}" Margin="0,14,0,10" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="110" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <TextBlock Text="监听" Style="{DynamicResource Text.Caption}" Margin="0,3" />
+                            <TextBlock Grid.Column="1" Text="{Binding ListenLine}" Style="{DynamicResource Text.Body}"
+                                       FontSize="12" Margin="0,3" AutomationProperties.Name="实际监听地址" />
+                            <TextBlock Grid.Row="1" Text="会话 / 租约" Style="{DynamicResource Text.Caption}" Margin="0,3" />
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SessionsLine}" Style="{DynamicResource Text.Body}"
+                                       FontSize="12" Margin="0,3" />
+                            <TextBlock Grid.Row="2" Text="只读 / 截图 / 审计" Style="{DynamicResource Text.Caption}" Margin="0,3" />
+                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding PolicyLine}" Style="{DynamicResource Text.Body}"
+                                       FontSize="12" Margin="0,3" TextWrapping="Wrap" />
+                        </Grid>
+                        <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                            <Button Content="{Binding PauseResumeLabel}" Style="{DynamicResource Button.Primary}"
+                                    Command="{Binding TogglePauseCommand}" IsEnabled="{Binding CanPause}"
+                                    MinWidth="96" AutomationProperties.Name="暂停或恢复模型操作" />
+                            <Button Content="紧急停止" Style="{DynamicResource Button.Danger}" Margin="8,0,0,0"
+                                    Command="{Binding EmergencyStopCommand}" IsEnabled="{Binding CanEmergencyStop}"
+                                    AutomationProperties.Name="紧急停止所有模型操作" />
+                            <TextBlock Style="{DynamicResource Text.Hint}" VerticalAlignment="Center" Margin="14,0,0,0">
+                                <Run Text="热键 " /><Run Text="{Binding HotkeyText, Mode=OneWay}" /><Run Text="（" /><Run Text="{Binding HotkeyStatusText, Mode=OneWay}" /><Run Text="）" />
+                            </TextBlock>
+                        </StackPanel>
+                        <controls:InlineBanner Severity="Info" Margin="0,12,0,0" Title="最近操作"
+                                               Message="{Binding ActionMessage}"
+                                               Visibility="{Binding HasActionMessage, Converter={StaticResource BoolToVisibility}}" />
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{DynamicResource Card}" Margin="0,16,0,0">
+                    <StackPanel>
+                        <TextBlock Text="配对 AstrBot 插件" Style="{DynamicResource Text.CardTitle}" />
+                        <TextBlock Style="{DynamicResource Text.Caption}" Margin="0,6,0,0"
+                                   Text="{Binding TokenSummary, StringFormat=token 状态：{0}}" />
+                        <TextBlock Style="{DynamicResource Text.Caption}" Margin="0,2,0,0"
+                                   Text="将插件配置片段粘到 AstrBot WebUI →「插件管理」→ WhaleGo →「配置」，保存并重载插件。"
+                                   Visibility="{Binding ShowPairingGuide, Converter={StaticResource BoolToVisibility}}" />
+                        <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                            <Button Content="打开配对向导" Style="{DynamicResource Button.Primary}"
+                                    Command="{Binding OpenWizardCommand}" AutomationProperties.Name="打开配对向导" />
+                            <Button Content="复制插件配置" Style="{DynamicResource Button.Secondary}" Margin="8,0,0,0"
+                                    Command="{Binding CopyPluginConfigCommand}" IsEnabled="{Binding CanCopyPluginConfig}"
+                                    AutomationProperties.Name="复制 AstrBot 插件配置片段" />
+                            <Button Content="刷新状态" Style="{DynamicResource Button.Ghost}" Margin="8,0,0,0"
+                                    Command="{Binding RefreshCommand}" AutomationProperties.Name="刷新概览状态" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

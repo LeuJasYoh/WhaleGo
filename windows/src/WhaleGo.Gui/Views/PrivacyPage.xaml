@@ -1,0 +1,63 @@
+<UserControl x:Class="WhaleGo.Gui.Views.PrivacyPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:WhaleGo.Gui.Views.Controls">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <StackPanel>
+            <TextBlock Text="隐私与审计" Style="{DynamicResource Text.PageTitle}" />
+            <TextBlock Text="密码脱敏、敏感窗口抑制与审计 fail-closed；危险项默认锁定"
+                       Style="{DynamicResource Text.PageSubtitle}" />
+        </StackPanel>
+        <Border Grid.Row="1" Style="{DynamicResource Card}" Margin="0,14,0,12" Padding="14"
+                Visibility="{Binding ShowAuditBanner, Converter={StaticResource BoolToVisibility}}">
+            <controls:InlineBanner Severity="{Binding AuditSeverity}" Title="审计风险提示" Message="{Binding AuditBannerText}" />
+        </Border>
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Padding="0,0,10,0">
+            <StackPanel>
+                <ItemsControl ItemsSource="{Binding Groups}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Style="{DynamicResource Card}" Margin="0,0,0,16">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Title}" Style="{DynamicResource Text.CardTitle}" />
+                                    <TextBlock Text="{Binding Description}" Style="{DynamicResource Text.Caption}" Margin="0,4,0,4"
+                                               Visibility="{Binding Description, Converter={StaticResource StringToVisibility}}" />
+                                    <ItemsControl ItemsSource="{Binding Fields}" />
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <Border Style="{DynamicResource Card}" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="{Binding AdvancedGroup.Title}" Style="{DynamicResource Text.CardTitle}" />
+                        <TextBlock Text="{Binding AdvancedGroup.Description}" Style="{DynamicResource Text.Caption}" Margin="0,4,0,8" />
+                        <StackPanel Visibility="{Binding AdvancedLocked, Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock Text="{Binding AdvancedSummary}" Style="{DynamicResource Text.Secondary}" />
+                            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                <TextBlock Text="🔒" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                <Button Content="解锁高级设置" Style="{DynamicResource Button.Secondary}"
+                                        Command="{Binding UnlockAdvancedCommand}"
+                                        AutomationProperties.Name="解锁高级危险设置" />
+                            </StackPanel>
+                        </StackPanel>
+                        <StackPanel Visibility="{Binding AdvancedUnlocked, Converter={StaticResource BoolToVisibility}}">
+                            <controls:InlineBanner Severity="Danger" Margin="0,0,0,8"
+                                                   Message="关闭 fail-closed 后：磁盘写入失败时动作仍会执行，事故无法复盘。保存前仍需输入「我了解风险」。" />
+                            <ItemsControl ItemsSource="{Binding AdvancedGroup.Fields}" />
+                            <Button Content="重新锁定" Style="{DynamicResource Button.Ghost}" HorizontalAlignment="Left" Margin="0,8,0,0"
+                                    Command="{Binding LockAdvancedCommand}" AutomationProperties.Name="重新锁定高级设置" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+        <controls:PageActionBar Grid.Row="3" />
+    </Grid>
+</UserControl>

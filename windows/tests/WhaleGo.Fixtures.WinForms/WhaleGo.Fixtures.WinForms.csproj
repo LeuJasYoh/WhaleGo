@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>WhaleGo.Fixtures.WinForms</RootNamespace>
+    <AssemblyName>WhaleGo.Fixtures.WinForms</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationUseCompatibleTextRendering>false</ApplicationUseCompatibleTextRendering>
+    <IsPackable>false</IsPackable>
+    <!-- Fixture app: no package references, no project references (self-contained on purpose). -->
+    <!--
+      WFO0003: the WinForms analyzer wants DPI awareness configured exclusively via
+      ApplicationHighDpiMode / Application.SetHighDpiMode. This fixture intentionally declares
+      PerMonitorV2 in app.manifest as well (the executor test suites verify the process DPI
+      awareness context), so the redundant-API warning is suppressed here on purpose.
+      Program.cs also calls Application.SetHighDpiMode(PerMonitorV2); both agree.
+    -->
+    <NoWarn>$(NoWarn);WFO0003</NoWarn>
+  </PropertyGroup>
+
+</Project>

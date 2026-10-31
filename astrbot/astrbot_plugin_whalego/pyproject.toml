@@ -1,0 +1,22 @@
+# 开发/测试配置（插件运行不依赖本文件；AstrBot 只读取 metadata.yaml/_conf_schema.json/main.py）
+# 用法（仓库根）：cd astrbot && uv pip install --python .venv/Scripts/python.exe pytest pytest-asyncio "mcp==1.30.0" ruff
+#            .venv/Scripts/python.exe -m pytest ../astrbot/astrbot_plugin_whalego/tests -q
+[project]
+name = "astrbot-plugin-whalego"
+version = "0.1.0"
+description = "WhaleGo AstrBot plugin: MCP client for the Windows desktop executor"
+requires-python = ">=3.12"
+dependencies = ["mcp>=1.30,<2"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "-q"
+
+[tool.ruff]
+line-length = 112
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "W", "I", "UP", "B"]

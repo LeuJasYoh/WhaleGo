@@ -1,0 +1,142 @@
+<UserControl x:Class="WhaleGo.Gui.Views.ConnectionPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:WhaleGo.Gui.Views.Controls">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <StackPanel>
+            <TextBlock Text="连接与配对" Style="{DynamicResource Text.PageTitle}" />
+            <TextBlock Text="监听地址、token 与 AstrBot 插件配对；token 只显示掩码" Style="{DynamicResource Text.PageSubtitle}" />
+        </StackPanel>
+        <controls:InlineBanner Grid.Row="1" Margin="0,14,0,10" Severity="{Binding RiskSeverity}"
+                               Title="监听面风险" Message="{Binding RiskBannerText}" />
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Padding="0,0,10,0">
+            <StackPanel>
+                <ItemsControl ItemsSource="{Binding Groups}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Style="{DynamicResource Card}" Margin="0,0,0,16">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Title}" Style="{DynamicResource Text.CardTitle}" />
+                                    <TextBlock Text="{Binding Description}" Style="{DynamicResource Text.Caption}" Margin="0,4,0,4"
+                                               Visibility="{Binding Description, Converter={StaticResource StringToVisibility}}" />
+                                    <ItemsControl ItemsSource="{Binding Fields}" />
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <Border Style="{DynamicResource Card}" Margin="0,0,0,16">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="token" Style="{DynamicResource Text.CardTitle}" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Text="{Binding TokenSummary}" Style="{DynamicResource Text.Caption}"
+                                       VerticalAlignment="Center" />
+                        </Grid>
+                        <TextBlock Text="安全规则：一律掩码显示（首 5 后 4），不提供「显示明文」；复制到剪贴板 60 秒后条件清空；轮换后旧 token 立即失效。"
+                                   Style="{DynamicResource Text.Hint}" Margin="0,6,0,8" />
+                        <ItemsControl ItemsSource="{Binding TokenRows}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BorderBrush="{DynamicResource Brush.Border}" BorderThickness="0,0,0,1" Padding="0,8">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="130" />
+                                                <ColumnDefinition Width="220" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding Name}" Style="{DynamicResource Text.Body}" VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Masked}" Style="{DynamicResource Text.Mono}"
+                                                       VerticalAlignment="Center" AutomationProperties.Name="掩码 token" />
+                                            <TextBlock Grid.Column="2" Style="{DynamicResource Text.Hint}" VerticalAlignment="Center">
+                                                <Run Text="创建于 " /><Run Text="{Binding CreatedAt, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding AvailabilityText, Mode=OneWay}" />
+                                            </TextBlock>
+                                            <Button Grid.Column="3" Content="复制" Style="{DynamicResource Button.Secondary}" Height="28"
+                                                    MinWidth="0" Padding="10,0" Command="{Binding CopyCommand}"
+                                                    IsEnabled="{Binding Available}" AutomationProperties.Name="复制 token" />
+                                            <Button Grid.Column="4" Content="轮换" Style="{DynamicResource Button.Secondary}" Height="28"
+                                                    MinWidth="0" Padding="10,0" Margin="8,0,0,0" Command="{Binding RotateCommand}"
+                                                    AutomationProperties.Name="轮换 token" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                            <Button Content="复制插件配置" Style="{DynamicResource Button.Primary}"
+                                    Command="{Binding CopyPluginConfigCommand}" IsEnabled="{Binding CanCopyPluginConfig}"
+                                    AutomationProperties.Name="复制插件配置（含 token）" />
+                            <Button Content="配对向导" Style="{DynamicResource Button.Secondary}" Margin="8,0,0,0"
+                                    Command="{Binding OpenWizardCommand}" AutomationProperties.Name="打开配对向导" />
+                        </StackPanel>
+                        <controls:InlineBanner Severity="Warning" Margin="0,10,0,0" Title="尚未完成配对"
+                                               Message="token 不可读或配置缺失：点「配对向导」生成 token 并复制插件配置。"
+                                               Visibility="{Binding ShowPairingGuide, Converter={StaticResource BoolToVisibility}}" />
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{DynamicResource Card}" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="连接测试" Style="{DynamicResource Text.CardTitle}" />
+                        <TextBlock Text="本机回环测试：GET http://127.0.0.1:端口/healthz（带/不带 token），不经过内核、不新增路由。"
+                                   Style="{DynamicResource Text.Hint}" Margin="0,6,0,8" />
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="本机连接测试" Style="{DynamicResource Button.Secondary}"
+                                    Command="{Binding RunLocalTestCommand}" AutomationProperties.Name="运行本机连接测试" />
+                            <TextBlock Text="{Binding LocalTestResult}" Style="{DynamicResource Text.Caption}" Margin="12,0,0,0"
+                                       VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="420"
+                                       AutomationProperties.Name="本机连接测试结果" />
+                        </StackPanel>
+                        <Border Style="{DynamicResource Divider}" />
+                        <TextBlock Text="容器内排查命令（复制到宿主机执行，不会自动运行）" Style="{DynamicResource Text.Caption}" />
+                        <Grid Margin="0,6,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox Style="{DynamicResource Input.MonoBox}" Height="54" Text="{Binding DockerCommandText, Mode=OneWay}"
+                                     AutomationProperties.Name="容器内探测命令" />
+                            <Button Grid.Column="1" Content="复制" Style="{DynamicResource Button.Ghost}" Height="28" MinWidth="0"
+                                    Padding="10,0" Margin="8,0,0,0" VerticalAlignment="Top" Command="{Binding CopyDockerCommand}"
+                                    AutomationProperties.Name="复制容器内探测命令" />
+                        </Grid>
+                        <TextBlock Text="插件侧步骤：① AstrBot WebUI →「插件管理」→「已安装插件」→ WhaleGo →「配置」；② 粘入复制的 JSON；③ 保存 →「重载插件」；④ 对机器人发 /whalego health。"
+                                   Style="{DynamicResource Text.Hint}" Margin="0,10,0,0" />
+                        <TextBlock Text="{Binding ActionMessage}" Style="{DynamicResource Text.Caption}" Margin="0,8,0,0"
+                                   Foreground="{DynamicResource Brush.Success}"
+                                   Visibility="{Binding HasActionMessage, Converter={StaticResource BoolToVisibility}}" />
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{DynamicResource Card}" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="防火墙（可选）" Style="{DynamicResource Text.CardTitle}" />
+                        <TextBlock Text="GUI 不会自动提权。若容器连不上，可以复制下面的命令，用管理员 PowerShell 执行，只允许 Docker/WSL 网段访问。"
+                                   Style="{DynamicResource Text.Hint}" Margin="0,6,0,8" />
+                        <TextBox Style="{DynamicResource Input.MonoBox}" Height="42" Text="{Binding FirewallCommandText, Mode=OneWay}"
+                                 AutomationProperties.Name="防火墙命令" />
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <Button Content="复制 PowerShell 命令" Style="{DynamicResource Button.Secondary}"
+                                    Command="{Binding CopyFirewallCommand}" AutomationProperties.Name="复制防火墙命令" />
+                            <Button Content="复制 netsh 命令" Style="{DynamicResource Button.Ghost}" Margin="8,0,0,0"
+                                    Command="{Binding CopyNetshCommand}" AutomationProperties.Name="复制 netsh 防火墙命令" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+        <controls:PageActionBar Grid.Row="3" />
+    </Grid>
+</UserControl>

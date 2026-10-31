@@ -690,3 +690,77 @@ GUI 状态卡片直接映射：`只读 / 暂停 / 停止（全局/本会话）/ 
 
 > 本文档 v0.3 为**拍板定稿**：§13 是用户结论，§11.2 是交给 Lead 的主文档同步清单，§10 是可实现的视觉规格。
 > 实现中若发现 WPF 能力与规格冲突，以“可访问性/安全 > 观感 > 动效”的顺序取舍，并在 §11.4 追加记录。
+---
+
+## 15. 实现说明（v0.3 落地记录；T7，2026-10-31）
+
+> 本节只记录**已实现内容、与规格的偏差、以及与 T4 的集成契约**，不改变 §1–§14 的规格结论，也不改变本文版本号（仍为 **v0.3**）。
+> 代码：`windows/src/WhaleGo.Gui/`（只引用 `WhaleGo.Contracts`）；测试：`windows/tests/WhaleGo.Gui.Tests/`。
+
+### 15.1 已交付
+
+| 交付物 | 落点 | 说明 |
+|---|---|---|
+| 主题 token / 控件样式 | `Themes/Shared.xaml`、`Themes/Light.xaml`、`Dark.xaml`、`HighContrast.xaml` | §10.2 的 19 个 `Color.*` token 全量、每套字典一套（静态测试逐文件校验）；`Brush.*` 随主题字典整体替换（见 §15.2-3）；圆角/字号/间距/字体栈与 `Button/Card/ToggleSwitch/SegmentedControl/NavItem/InlineBanner/Table/ToolTip/ScrollBar` 全部自写样式 |
+| WPF 外壳 | `App.xaml(.cs)`、`Views/MainWindow.xaml(.cs)` | `ShutdownMode=OnExplicitShutdown`、无 StartupUri；左导航 192、默认 880×620（最小 760×520）、状态栏 28、右上角主题分段控件；关窗=隐藏托盘；Esc=隐藏、F5=刷新、Ctrl+S=应用当前页 |
+| 主题服务 | `Theming/ThemeService.cs`、`ThemeCoordinator.cs`、`LiveSystemThemeProvider.cs`、`WpfThemeResourceHost.cs` | `system/light/dark` 决策矩阵 + 跟随系统 + 高对比度强制覆盖 + 换字典热切换 + `IWindowTheme` 标题栏通知 + 应用失败回滚；`ui.theme` 立即生效并 `SetConfig` 持久化，保存失败回滚视觉 |
+| 托盘 | `Tray/TrayShell.cs`、`TrayState.cs`、`TrayIconProvider.cs`、`BalloonPolicy.cs`、`Assets/Icons/*.ico` | NotifyIcon + 5 态 × 浅/深任务栏共 10 个多尺寸 `.ico`（16/20/24/32/48/256）；菜单按 §5.2（无自启项）；双击=打开设置、单击无动作；tooltip ≤63 字符且不含 token/会话 id；气泡 30s 同类冷却 + ≤3 条/分钟 + `ui.notificationsLevel` 过滤；退出=唯一真实退出路径（默认取消 + 租约警告） |
+| 6 个设置页 | `Views/*Page.xaml` + `ViewModels/*ViewModel.cs` | 概览 / 连接与配对 / 执行策略 / 隐私与审计 / 诊断与日志 / 关于·限制；所有内核调用经 `Infrastructure/SafeControl.cs`（后台线程 + 1s 超时 + 全异常捕获），UI 线程不阻塞 |
+| 配置页机制 | `ViewModels/ConfigPageViewModel.cs`、`ViewModels/Fields/**`、`Validation/ConfigRules.cs` | 逐页脏标记、只 `SetConfig` 当前页改动键（patch 语义）、来源徽标（默认/配置文件/环境变量/命令行）且环境变量/命令行覆盖项只读、逐字段校验就地报错、重启生效徽标 + 应用后「重启执行器」提示、`恢复` 回滚到上次加载值 |
+| 配对向导 | `ViewModels/PairingWizardViewModel.cs`、`Views/Dialogs/PairingWizardWindow.xaml` | 5 步：风险确认 / 监听+token（掩码、重新生成、复制）/ 插件配置片段（url 随端口、复制时替换 token 明文、127.0.0.1 警告）/ 本机连接测试 + 等待容器 + 一键自检摘要 / 完成（防火墙命令、目录、手动启动、AstrBot 侧步骤） |
+| GuiShell | `GuiShell.cs`（公共面不变）、`Internal/GuiHost.cs` | 在独立 STA 线程内创建 WPF Application + 窗口 + 托盘 + 全局热键；对外只暴露既有构造/属性/方法/事件；`ExitRequested` 从后台线程触发；`Dispose` 注销热键（id=`emergency-stop`）、销毁托盘、关窗口、`Application.Shutdown()` 并 join ≤5s |
+| 测试 | `WhaleGo.Gui.Tests`（125 个用例，0 失败） | 主题决策矩阵/fake 回滚/标题栏、配置校验表、逐页 apply/回滚/来源只读/重启徽标/危险项口语确认、托盘 5 态映射/tooltip/气泡策略、诊断表映射、XAML 静态检查（无颜色字面量/无第三方包/GUI 只引用 Contracts/图标多尺寸/主题 token 完整性）、STA 构造冒烟 + `AutomationProperties.Name` 全覆盖、GuiShell 公共面与 headless 行为 |
+
+### 15.2 与规格的偏差（如实记录）
+
+1. **系统主题跟随不引 `Microsoft.Win32.SystemEvents`**：为保持“零第三方 NuGet”，`LiveSystemThemeProvider` 用
+   `SystemParameters.StaticPropertyChanged` + 1 秒一次的注册表轮询（`AppsUseLightTheme`）与 `SystemParameters.HighContrast` 比对，
+   仍在 §10.7 要求的“1 秒内跟随”范围内；未使用 §10.7 提及的 `SystemEvents.UserPreferenceChanged`。
+2. **微动效与系统“显示动画”开关**：主题切换（150ms 淡入）与页面切换（120ms 淡入）在
+   `SystemParameters.ClientAreaAnimation=false` 时降为 0ms；但控件级 80–120ms 的 hover/pressed/开关滑块过渡属于状态反馈，未做全局关闭
+   （WPF 无全局动画开关，逐 Storyboard 判断代价过高）。按 §10 末尾“可访问性/安全 > 观感 > 动效”的优先级取舍。
+3. **`Brush.*` 定义在每套主题字典内（而非 Shared.xaml 一处派生）**：WPF 的 `Freezable`（`SolidColorBrush`）不适合持有跨字典的
+   `DynamicResource` 表达式（实测换字典后不重新解析），因此每套主题字典各自给出 19 个 `Brush.*`；字面颜色只出现在
+   `Themes/*.xaml`（静态测试仍保证视图零颜色字面量、19 个 `Color.*` token 每套齐全、视图引用的 `Brush.*` 一定存在且为 `DynamicResource`）。
+4. **托盘“审计非 fail-closed 黄标”**：§9.7 要求“托盘黄标”，5 态图标集不新增第 6 态；实现为托盘菜单中的黄色告警行
+   （“⚠ 审计：非 fail-closed（事故无法复盘）”）+ tooltip 追加“审计非 fail-closed”+ 保存后一次气泡，状态仍可用键盘/读屏获取。
+5. **连接检测口径**：`IExecutorControl` 没有“外部请求来源/等待容器连接”专用 API，向导第 4 步与托盘“已连接”判定使用
+   `StatusSnapshot.Sessions > 0` 或最近 5 分钟内的 `GetRecentRequests`（与 §5.1 判定一致），容器侧探测命令以“可复制、不自动执行”呈现。
+6. **工具计数粒度**：`GetToolCounters()` 只给每工具总数（无成功/失败/错误码细分）；诊断页展示总数 + 由两次采样计算的每分钟速率，
+   并借“最近请求（≤50）”展示错误码分布；不伪造细分数据。
+7. **打开日志/审计目录**：Contracts 只有 `OpenDataFolder()`，按 §8.3 的明确要求用 `explorer.exe <path>`（纯 shell 激活、不 P/Invoke、
+   不提权）；数据目录仍走内核端口。
+8. **本机连接测试**：按 §7.4 用进程内 `HttpClient` 请求 `http://127.0.0.1:<port>/healthz`（带/不带 token），不新增 HTTP 路由；
+   不替代内核自检。
+9. **`screenshot.mode=wgc`**：按 §6.2 作为 P2 占位保留可选项并显示“会回退 printsummary/printwindow”的提示；内核行为由 T4 决定。
+10. **高对比度**：`Brush.*` 映射系统 `SystemColors`（高对比度下品牌色退化），`Color.*` token 保留文档键集以维持工具/测试契约。
+
+### 15.3 与 T4（Executor 组合根）的集成契约
+
+- **公共 API 不变**：`GuiOptions(bool Headless, bool NoHotkey, string Version, string ProtocolVersion, string ExecutablePath, string ConfigPath, string LogsDirectory)`；
+  `GuiShell(IExecutorControl, IWindowTheme, IHotkeyRegistrar, GuiOptions)` + `WindowTheme/Hotkeys/Options/Control` + `ExitRequested` +
+  `ShowSettings()/HideToTray()/ShowBalloon(string,string,bool)/RefreshStatus()/RequestExit()/Dispose()`（有反射契约测试守护）。
+- **GUI 自己拥有 UI 线程与 WPF Application**（`Internal/GuiHost.cs` 独立 STA 线程；`--headless` 时完全不建 UI）。T4 **不要**再创建
+  `Application`/窗口；非 headless 只需构造 `GuiShell`。
+- **退出语义**：托盘「退出」→ 确认框 → `ExitRequested`（在线程池线程触发）。T4 在事件里停内核、保存状态，然后调用 `Dispose()`；
+  `Dispose()` 会注销热键、销毁托盘、关窗口并 `Shutdown()` WPF，最多等待 UI 线程 5s，不阻塞内核停机。
+- **热键**：`IHotkeyRegistrar.TryRegister("emergency-stop", <hotkeys.emergencyStop>, callback)`，`NoHotkey` 或 `hotkeys.enabled=false` 时不注册；
+  回调可能来自 Platform 线程，GUI 内部转后台 `Stop("hotkey")`，不阻塞回调；注册失败会托盘气泡 + 设置页/诊断页红字，不静默。
+- **标题栏**：`IWindowTheme.TryApplyDarkTitleBar(hwnd, dark)` 在窗口创建与每次主题变化时调用；返回 `false` 时按 Win10 回退处理（关于页注明）。
+- **配置值形状（写入 `ConfigPatch.Values`，键一律 camelCase `ConfigKeys.*`）**：`bool` / `int`（或 `long`）/ `string` /
+  `privacy.sensitiveWindows` 用 `string[]` / `launch.allowlist` 用 `List<LaunchAllowlistEntry>`；
+  读取侧兼容 `JsonElement`、`long`、`string`、allowlist 字典等形状（`Validation/ConfigValue.cs`），T4 侧无需为 GUI 改类型。
+- **`GetConfigSources()`** 期望返回 `ConfigSourceKinds.*` 字符串；GUI 把 `environment`/`commandLine` 视为只读并显示覆盖变量名。
+- **首启判定**：`ConfigPath` 不存在或 `GetTokens()` 无可用 token → 启动后显示设置窗口并弹出 5 步向导（可跳过）。
+- **状态轮询**：可见时每 2s 一次 `GetStatus`（1s 超时），托盘状态随 `StatusSnapshot` 更新；`RefreshStatus()` 可立即触发。
+- `GuiShell` 使用的 `IExecutorControl` 方法全集：`GetStatus / GetRecentRequests / GetToolCounters / GetConfig / GetConfigSources / SetConfig /
+  GetTokens / RotateToken / RevealTokenForCopy / RunSelfCheck / ReadAuditTail / Pause / Resume / Stop / ResetStop / OpenDataFolder / RequestRestart`。
+
+### 15.4 待 Lead 决策的 Contracts 缺口（本任务未改 Contracts）
+
+1. `GetToolCounters()` 返回 `IReadOnlyDictionary<string,long>`：无成功/失败/错误码细分，诊断页只能“总数 + 最近请求”近似；
+   如需 §8.2 的完整表格，建议后续在 Contracts 增补只读诊断 DTO。
+2. 无“外部请求/最后连接时间”端口：向导步骤 4 与托盘“已连接”只能用 `Sessions` + 最近请求推断（口径已与 §5.1 对齐）。
+3. 无按目录打开的端口（只有 `OpenDataFolder()`）：日志/审计目录按 §8.3 用 `explorer.exe` 打开。
+4. `ConfigPatch` 为弱类型字典：GUI 已在读取侧做兼容，但“写入形状”目前靠双方约定（见 §15.3）；后续若要强约束，建议 Contracts 增补
+   `ConfigSnapshot`/类型化 getter（会牵动 T4，属契约变更，需 Lead 决策）。

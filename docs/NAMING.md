@@ -165,7 +165,7 @@ tags: [mcp, computer-use, windows, automation]
 | MCP server 名（`mcpServers` key） | `whalego` |
 | MCP 端点 | `http://host.docker.internal:8765/mcp`（`/mcp` 为 MCP 惯例，不改） |
 | 协议载荷 | `whalego-observe-v1` / `whalego-act-v1` / `whalego-error-v1` / `whalego-health-v1` … |
-| 会话 id | `wg-<sha16>`（如 `wg-8f21cd04`） |
+| 会话 id | `wg-<sha16>`（如 `wg-8f21cd04f00dbeef`） |
 | C# 解决方案/项目 | `WhaleGo.sln` / `WhaleGo.Contracts` / `WhaleGo.Platform` / `WhaleGo.Executor` |
 | 测试项目/夹具 | `WhaleGo.Contracts.Tests` / `WhaleGo.Platform.Tests` / `WhaleGo.Executor.Tests` / `WhaleGo.Fixtures.WinForms` |
 | 环境变量 | `WHALEGO_*`（`WHALEGO_CONFIG`、`WHALEGO_TOKEN`…） |

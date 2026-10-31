@@ -1,0 +1,11 @@
+<UserControl x:Class="WhaleGo.Gui.Views.Controls.ConfigFieldFooter"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <StackPanel>
+        <TextBlock Text="{Binding Error}" Style="{DynamicResource Text.Error}"
+                   Visibility="{Binding HasError, Converter={StaticResource BoolToVisibility}}" />
+        <TextBlock Text="{Binding Warning}" Style="{DynamicResource Text.Caption}" Margin="0,4,0,0"
+                   Foreground="{DynamicResource Brush.Warning}"
+                   Visibility="{Binding HasWarning, Converter={StaticResource BoolToVisibility}}" />
+    </StackPanel>
+</UserControl>

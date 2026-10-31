@@ -99,7 +99,7 @@
   "message": "观察状态已过期，请先重新调用 go_observe。",
   "retry": "reobserve",                 // never | retry | reobserve
   "retry_after_ms": null,               // retry=retry 时给出建议等待
-  "details": { "session_id": "wg-8f21cd04", "state_id": "st-8f21cd04" },
+  "details": { "session_id": "wg-8f21cd04f00dbeef", "state_id": "st-8f21cd04" },
   "action_receipt": null,               // not_sent/possibly_sent 时内嵌完整回执
   "diagnostic": { "phase": "validate", "elapsed_ms": 2 }
 }
@@ -166,7 +166,7 @@
 
 ### 3.3 会话与 `session_id`
 
-- 业务 `session_id` 由插件按 umo 派生注入：`"wg-" + sha256(umo)[:16]`（如 `wg-8f21cd04`），**模型不可见、不可传**；
+- 业务 `session_id` 由插件按 umo 派生注入：`"wg-" + sha256(umo)[:16]`（如 `wg-8f21cd04f00dbeef`），**模型不可见、不可传**；
   executor 解析顺序：内部注入参数 → MCP 连接身份 → `"default"`。
 - 会话状态：当前目标窗口、当前 state/frame、观察 TTL、速率计数、控制权租约、`paused`/`stopped`/`session_stopped`。
 - 会话 epoch：执行器进程重启/MCP 连接重建后 epoch 递增，旧 `state_id` 一律 `STALE_STATE`；插件重连后必须提示模型重新 observe。
@@ -262,7 +262,7 @@
 ```jsonc
 {
   "schema_version": "whalego-observe-v1",
-  "session_id": "wg-8f21cd04",
+  "session_id": "wg-8f21cd04f00dbeef",
   "state_id": "st-8f21cd04",
   "frame": { "image_width": 800, "image_height": 600, "client_width": 800, "client_height": 600,
              "scale_x": 1.0, "scale_y": 1.0, "capture_region": "client",
@@ -375,7 +375,7 @@
 ```jsonc
 {
   "schema_version": "whalego-act-v1",
-  "session_id": "wg-8f21cd04",
+  "session_id": "wg-8f21cd04f00dbeef",
   "request_id": "req-01H…",
   "op": "click",
   "action_receipt": {
@@ -399,7 +399,7 @@
   "message": "动作可能已发送，禁止重试；请先重新观察。",
   "retry": "reobserve",
   "retry_after_ms": null,
-  "details": { "session_id": "wg-8f21cd04" },
+  "details": { "session_id": "wg-8f21cd04f00dbeef" },
   "action_receipt": {
     "action_sent": true,
     "dispatch_status": "possibly_sent",

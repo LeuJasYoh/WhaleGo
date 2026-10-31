@@ -532,7 +532,7 @@ class GoObserveTool(FunctionTool[AstrAgentContext]):
 
 ### 6.4 umo → whalego session
 
-- `session_id` 由插件注入（内部参数）= `"wg-" + sha256(umo)[:16]`（如 `wg-8f21cd04`）；**模型不可见/不可传**；observation 状态绑定在该 session 上。
+- `session_id` 由插件注入（内部参数）= `"wg-" + sha256(umo)[:16]`（如 `wg-8f21cd04f00dbeef`）；**模型不可见/不可传**；observation 状态绑定在该 session 上。
 - 插件只记录最近一次 observe 的 `state_id/window_id` 作为**提示**（不缓存 UI 状态、不代为复用）；
   缺失/过期由执行器判定并返回 `STALE_STATE`，插件提示模型"先 observe"。
 - 插件重启/会话切换 → 新 session 自动创建；旧 session 执行器侧空闲超时清理。

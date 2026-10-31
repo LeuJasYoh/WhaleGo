@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>WhaleGo.Executor</RootNamespace>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <NoWarn>$(NoWarn);NU1701;WFO0003</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\WhaleGo.Contracts\WhaleGo.Contracts.csproj" />
+    <ProjectReference Include="..\WhaleGo.Platform\WhaleGo.Platform.csproj" />
+    <ProjectReference Include="..\WhaleGo.Gui\WhaleGo.Gui.csproj" />
+    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.3.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Single source of truth: the contract file ships next to the executable and is read for tools/list. -->
+    <None Include="..\..\..\contracts\whalego.tools.v1.json" Link="contracts\whalego.tools.v1.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

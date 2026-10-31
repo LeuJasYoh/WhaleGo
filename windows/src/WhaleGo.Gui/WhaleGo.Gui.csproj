@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>WhaleGo.Gui</RootNamespace>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyTitle>WhaleGo.Gui</AssemblyTitle>
+    <Description>WhaleGo WPF settings window + WinForms tray (UI layer; references Contracts only).</Description>
+    <!-- WhaleGo.Gui is a library: the WPF Application object is created by GuiShell on its own STA thread,
+         so App.xaml must not be an ApplicationDefinition (MC1002). It is compiled as a Page instead. -->
+    <EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\WhaleGo.Contracts\WhaleGo.Contracts.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Tray icons: 5 states x {light,dark}-taskbar variants, multi-size (16/20/24/32/48/256). -->
+    <EmbeddedResource Include="Assets\Icons\*.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- WPF + WinForms in one assembly: drop the WinForms implicit usings that would shadow WPF types
+         (System.Windows.Application vs System.Windows.Forms.Application, Brush vs System.Drawing.Brush).
+         WinForms files opt in with explicit usings. -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+</Project>

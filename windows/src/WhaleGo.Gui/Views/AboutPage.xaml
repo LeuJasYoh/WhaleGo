@@ -1,0 +1,126 @@
+<UserControl x:Class="WhaleGo.Gui.Views.AboutPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:WhaleGo.Gui.Views.Controls"
+             xmlns:vm="clr-namespace:WhaleGo.Gui.ViewModels">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <StackPanel>
+            <TextBlock Text="关于 / 限制" Style="{DynamicResource Text.PageTitle}" />
+            <TextBlock Text="版本、主题、启动方式与已知限制" Style="{DynamicResource Text.PageSubtitle}" />
+        </StackPanel>
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,0,10,0" Margin="0,16,0,0">
+            <StackPanel>
+                <Border Style="{DynamicResource Card}" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="版本信息" Style="{DynamicResource Text.CardTitle}" />
+                        <Grid Margin="0,8,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="130" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <TextBlock Text="程序版本" Style="{DynamicResource Text.Caption}" Margin="0,3" />
+                            <TextBlock Grid.Column="1" Style="{DynamicResource Text.Body}" FontSize="12" Margin="0,3"
+                                       Text="{Binding Version, StringFormat=WhaleGo {0}}" />
+                            <TextBlock Grid.Row="1" Text="协议版本" Style="{DynamicResource Text.Caption}" Margin="0,3" />
+                            <TextBlock Grid.Row="1" Grid.Column="1" Style="{DynamicResource Text.Body}" FontSize="12" Margin="0,3"
+                                       Text="{Binding ProtocolVersion, StringFormat=protocol v{0}}" />
+                            <TextBlock Grid.Row="2" Text="MCP 协议" Style="{DynamicResource Text.Caption}" Margin="0,3" />
+                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding McpProtocolVersion}" Style="{DynamicResource Text.Body}" FontSize="12" Margin="0,3" />
+                            <TextBlock Grid.Row="3" Text="程序路径" Style="{DynamicResource Text.Caption}" Margin="0,3" />
+                            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding ExecutablePath}" Style="{DynamicResource Text.Mono}" Margin="0,3" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Grid.Row="4" Text="配置路径" Style="{DynamicResource Text.Caption}" Margin="0,3" />
+                            <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding ConfigPath}" Style="{DynamicResource Text.Mono}" Margin="0,3" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Grid.Row="5" Text="日志目录" Style="{DynamicResource Text.Caption}" Margin="0,3" />
+                            <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding LogsDirectory}" Style="{DynamicResource Text.Mono}" Margin="0,3" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Grid.Row="6" Text="审计目录" Style="{DynamicResource Text.Caption}" Margin="0,3" />
+                            <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding AuditDirectory}" Style="{DynamicResource Text.Mono}" Margin="0,3" TextTrimming="CharacterEllipsis" />
+                        </Grid>
+                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                            <Button Content="打开数据目录" Style="{DynamicResource Button.Secondary}" Command="{Binding OpenDataFolderCommand}"
+                                    AutomationProperties.Name="打开数据目录" />
+                            <Button Content="打开日志目录" Style="{DynamicResource Button.Ghost}" Margin="8,0,0,0"
+                                    Command="{Binding OpenLogsCommand}" AutomationProperties.Name="打开日志目录" />
+                            <Button Content="复制路径" Style="{DynamicResource Button.Ghost}" Margin="8,0,0,0"
+                                    Command="{Binding CopyPathsCommand}" AutomationProperties.Name="复制路径信息" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding ActionMessage}" Style="{DynamicResource Text.Caption}" Margin="0,8,0,0"
+                                   Foreground="{DynamicResource Brush.Success}"
+                                   Visibility="{Binding HasActionMessage, Converter={StaticResource BoolToVisibility}}" />
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{DynamicResource Card}" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="启动方式" Style="{DynamicResource Text.CardTitle}" />
+                        <TextBlock Text="{x:Static vm:AboutViewModel.StartupText}" Style="{DynamicResource Text.SectionTitle}" Margin="0,8,0,0" />
+                        <TextBlock Text="{x:Static vm:AboutViewModel.StartupExplanation}" Style="{DynamicResource Text.Caption}" Margin="0,4,0,0" />
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{DynamicResource Card}" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="主题与外观" Style="{DynamicResource Text.CardTitle}" />
+                        <TextBlock Text="{x:Static vm:AboutViewModel.ThemeExplanation}" Style="{DynamicResource Text.Caption}" Margin="0,8,0,0" />
+                        <TextBlock Style="{DynamicResource Text.Caption}" Margin="0,6,0,0"
+                                   Text="{Binding ThemePreferenceText, StringFormat=当前选择：{0}（可在右上角切换，立即生效）}" />
+                        <TextBlock Text="高对比度：优先使用系统配色；Windows 10 无 DWM 暗色标题栏时回退浅色标题栏 + 深色内容。"
+                                   Style="{DynamicResource Text.Hint}" Margin="0,4,0,0" />
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{DynamicResource Card}" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="全局热键" Style="{DynamicResource Text.CardTitle}" />
+                        <TextBlock Style="{DynamicResource Text.SectionTitle}" Margin="0,8,0,0">
+                            <Run Text="{Binding HotkeyText, Mode=OneWay}" /><Run Text="（" /><Run Text="{Binding HotkeyStatusText, Mode=OneWay}" /><Run Text="）" />
+                        </TextBlock>
+                        <TextBlock Text="{x:Static vm:AboutViewModel.HotkeyExplanation}" Style="{DynamicResource Text.Caption}" Margin="0,4,0,0" />
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{DynamicResource Card}" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="已知限制（本版本无法通过 GUI 修复）" Style="{DynamicResource Text.CardTitle}" />
+                        <ItemsControl ItemsSource="{x:Static vm:AboutViewModel.Limitations}" Margin="0,8,0,0">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,3">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="16" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="•" Style="{DynamicResource Text.Caption}" />
+                                        <TextBlock Grid.Column="1" Text="{Binding}" Style="{DynamicResource Text.Caption}" TextWrapping="Wrap" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Text="GUI 不做：WebUI/WebView、开机自启、自动更新/安装器/代码签名、自定义窗口边框（用系统原生标题栏）。"
+                                   Style="{DynamicResource Text.Hint}" Margin="0,8,0,0" />
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{DynamicResource Card}" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="免责声明与隐私" Style="{DynamicResource Text.CardTitle}" />
+                        <TextBlock Text="{x:Static vm:AboutViewModel.Disclaimer}" Style="{DynamicResource Text.Caption}" Margin="0,8,0,0" />
+                        <TextBlock Text="{x:Static vm:AboutViewModel.PrivacyNote}" Style="{DynamicResource Text.Hint}" Margin="0,8,0,0" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

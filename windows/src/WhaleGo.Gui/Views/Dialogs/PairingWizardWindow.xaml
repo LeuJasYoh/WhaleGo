@@ -1,0 +1,231 @@
+<Window x:Class="WhaleGo.Gui.Views.Dialogs.PairingWizardWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:WhaleGo.Gui.Views.Controls"
+        xmlns:vm="clr-namespace:WhaleGo.Gui.ViewModels"
+        Title="WhaleGo 配对向导" Width="680" Height="660" MinWidth="600" MinHeight="560"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False" UseLayoutRounding="True">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Margin="24,20,24,0">
+            <TextBlock Text="WhaleGo 配对向导" Style="{DynamicResource Text.PageTitle}" />
+            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                <TextBlock Text="{Binding StepIndicator}" Style="{DynamicResource Text.Caption}" />
+                <TextBlock Text=" · " Style="{DynamicResource Text.Caption}" />
+                <TextBlock Text="{Binding StepTitle}" Style="{DynamicResource Text.Caption}" />
+                <TextBlock Text=" · 5 步内完成 Windows 端与 AstrBot 插件配对" Style="{DynamicResource Text.Hint}" />
+            </StackPanel>
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="24,14,24,0">
+            <StackPanel>
+                <!-- Step 1: welcome & risk -->
+                <StackPanel Visibility="{Binding Step, Converter={StaticResource StepToVisibility}, ConverterParameter=1}">
+                    <controls:InlineBanner Severity="Warning" Title="在你自己的机器上运行"
+                                           Message="WhaleGo 必须在本机以你的用户身份运行，模型通过 token 访问。请只在自己的可控设备上使用。" />
+                    <TextBlock Text="{x:Static vm:PairingWizardViewModel.RiskIntro}" Style="{DynamicResource Text.Body}"
+                               Margin="0,14,0,0" />
+                    <controls:InlineBanner Severity="Info" Margin="0,14,0,0" Title="截图默认开启，但默认不自动附图"
+                                           Message="模型需要显式请求才会收到截图；敏感窗口自动抑制、本程序窗口永不截图。截图含隐私，未经明确要求不得转发。可随时用热键紧急停止或在「执行策略」页关闭截图。" />
+                    <CheckBox Style="{DynamicResource CheckBox.Text}" Margin="0,18,0,0" IsChecked="{Binding Acknowledged, Mode=TwoWay}"
+                              AutomationProperties.Name="我已了解风险">
+                        <TextBlock Text="我明白：WhaleGo 能观察并操作我的桌面；我可以随时用全局热键或托盘紧急停止。" TextWrapping="Wrap" />
+                    </CheckBox>
+                </StackPanel>
+
+                <!-- Step 2: listen + token -->
+                <StackPanel Visibility="{Binding Step, Converter={StaticResource StepToVisibility}, ConverterParameter=2}">
+                    <Border Style="{DynamicResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="监听" Style="{DynamicResource Text.CardTitle}" />
+                            <Grid Margin="0,12,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="110" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="监听地址" Style="{DynamicResource Text.Caption}" VerticalAlignment="Center" />
+                                <StackPanel Grid.Column="1">
+                                    <TextBox Style="{DynamicResource Input.TextBox}" Text="{Binding AddressText, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                                             controls:UiProps.HasError="{Binding AddressError, Converter={StaticResource StringToVisibility}}"
+                                             AutomationProperties.Name="监听地址" />
+                                    <TextBlock Text="{Binding AddressError}" Style="{DynamicResource Text.Error}" />
+                                </StackPanel>
+                            </Grid>
+                            <Grid Margin="0,10,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="110" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="监听端口" Style="{DynamicResource Text.Caption}" VerticalAlignment="Center" />
+                                <StackPanel Grid.Column="1">
+                                    <TextBox Style="{DynamicResource Input.TextBox}" Width="150" HorizontalAlignment="Left"
+                                             Text="{Binding PortText, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                                             AutomationProperties.Name="监听端口" />
+                                    <TextBlock Text="{Binding PortError}" Style="{DynamicResource Text.Error}" />
+                                </StackPanel>
+                            </Grid>
+                            <TextBlock Text="修改监听地址/端口会立即保存，但需要重启执行器才生效。" Style="{DynamicResource Text.Hint}" Margin="0,8,0,0" />
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{DynamicResource Card}" Margin="0,14,0,0">
+                        <StackPanel>
+                            <TextBlock Text="token" Style="{DynamicResource Text.CardTitle}" />
+                            <TextBlock Text="token 只显示掩码（首 5 后 4），明文只存在于本机 secrets.json；复制走剪贴板 60 秒后清空。"
+                                       Style="{DynamicResource Text.Hint}" Margin="0,6,0,8" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox Style="{DynamicResource Input.TextBox}" Text="{Binding TokenMasked, Mode=OneWay}"
+                                         IsReadOnly="True" AutomationProperties.Name="掩码 token" />
+                                <Button Grid.Column="1" Content="重新生成" Style="{DynamicResource Button.Secondary}"
+                                        Margin="8,0,0,0" Command="{Binding RetryTokenCommand}"
+                                        AutomationProperties.Name="重新生成 token" />
+                                <Button Grid.Column="2" Content="复制" Style="{DynamicResource Button.Ghost}"
+                                        Margin="8,0,0,0" Command="{Binding CopyTokenCommand}"
+                                        AutomationProperties.Name="复制 token" />
+                            </Grid>
+                            <controls:InlineBanner Severity="Warning" Margin="0,10,0,0" Title="token 不可读"
+                                                   Message="secrets.json 缺失或损坏：点「重新生成」创建新 token（旧 token 立即失效）。"
+                                                   Visibility="{Binding ShowTokenWarning, Converter={StaticResource BoolToVisibility}}" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Step 3: plugin snippet -->
+                <StackPanel Visibility="{Binding Step, Converter={StaticResource StepToVisibility}, ConverterParameter=3}">
+                    <controls:InlineBanner Severity="Danger" Title="当前仅本机监听，容器连不上"
+                                           Message="listen.address=127.0.0.1 时 host.docker.internal 走宿主虚拟网卡而非回环，请改回 0.0.0.0 或本机网卡地址。"
+                                           Visibility="{Binding ShowLocalhostWarning, Converter={StaticResource BoolToVisibility}}" />
+                    <TextBlock Text="把下面的 JSON 粘到 AstrBot WebUI（url 随监听端口生成；token 已在「复制插件配置」时替换为明文）。"
+                               Style="{DynamicResource Text.Body}" Margin="0,12,0,0" />
+                    <TextBox Style="{DynamicResource Input.MonoBox}" Height="240" Margin="0,10,0,0"
+                             Text="{Binding PluginPreviewJson, Mode=OneWay}" AutomationProperties.Name="插件配置片段（预览）" />
+                    <TextBlock Text="预览中 token 是占位符；点下面的按钮复制时会把当前 token 明文填进去，一次粘贴即可。"
+                               Style="{DynamicResource Text.Hint}" Margin="0,6,0,0" />
+                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                        <Button Content="复制插件配置（含 token）" Style="{DynamicResource Button.Primary}"
+                                Command="{Binding CopyPluginConfigCommand}" AutomationProperties.Name="复制插件配置" />
+                        <Button Content="复制容器探测命令" Style="{DynamicResource Button.Secondary}" Margin="8,0,0,0"
+                                Command="{Binding CopyDockerCommand}" AutomationProperties.Name="复制容器内探测命令" />
+                    </StackPanel>
+                    <Border Style="{DynamicResource Card}" Margin="0,14,0,0">
+                        <StackPanel>
+                            <TextBlock Text="粘到哪里" Style="{DynamicResource Text.SectionTitle}" />
+                            <ItemsControl ItemsSource="{x:Static vm:PairingWizardViewModel.ContainerSteps}" Margin="0,8,0,0">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}" Style="{DynamicResource Text.Caption}" Margin="0,2" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Step 4: connection test -->
+                <StackPanel Visibility="{Binding Step, Converter={StaticResource StepToVisibility}, ConverterParameter=4}">
+                    <Border Style="{DynamicResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="本机自测" Style="{DynamicResource Text.CardTitle}" />
+                            <TextBlock Text="在进程内请求 http://127.0.0.1:端口/healthz（带/不带 token），确认监听与认证都正常。"
+                                       Style="{DynamicResource Text.Hint}" Margin="0,6,0,8" />
+                            <Button Content="运行本机连接测试" Style="{DynamicResource Button.Secondary}"
+                                    Command="{Binding TestCommand}" AutomationProperties.Name="运行本机连接测试" />
+                            <TextBlock Text="{Binding TestResult}" Style="{DynamicResource Text.Caption}" Margin="0,10,0,0"
+                                       TextWrapping="Wrap" AutomationProperties.Name="本机测试结果" />
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{DynamicResource Card}" Margin="0,14,0,0">
+                        <StackPanel>
+                            <TextBlock Text="等待容器连接" Style="{DynamicResource Text.CardTitle}" />
+                            <TextBlock Text="{Binding ContainerStatus}" Style="{DynamicResource Text.Caption}" Margin="0,8,0,0"
+                                       TextWrapping="Wrap" AutomationProperties.Name="容器连接状态" />
+                            <TextBlock Text="提示：在 AstrBot WebUI 保存并重载插件后，这里会在几秒内变为已连接；也可以先点「跳过，稍后配置」，之后在设置页继续。"
+                                       Style="{DynamicResource Text.Hint}" Margin="0,8,0,0" />
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{DynamicResource Card}" Margin="0,14,0,0">
+                        <StackPanel>
+                            <TextBlock Text="本机自检（连不上时看这里）" Style="{DynamicResource Text.CardTitle}" />
+                            <TextBlock Text="检查端口 / 防火墙 / UIA / DPI / 交互会话 / 审计可写 / 热键 / 认证 / 主题资源。"
+                                       Style="{DynamicResource Text.Hint}" Margin="0,6,0,8" />
+                            <Button Content="运行自检" Style="{DynamicResource Button.Secondary}"
+                                    Command="{Binding RunSelfCheckCommand}" AutomationProperties.Name="运行本机自检" />
+                            <TextBlock Text="{Binding SelfCheckSummary}" Style="{DynamicResource Text.Caption}" Margin="0,8,0,0"
+                                       TextWrapping="Wrap" AutomationProperties.Name="自检摘要" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Step 5: finish -->
+                <StackPanel Visibility="{Binding Step, Converter={StaticResource StepToVisibility}, ConverterParameter=5}">
+                    <controls:InlineBanner Severity="Info" Title="最后一步" Message="Windows 端已就绪；剩下的是把插件配置粘进 AstrBot 并验证。" />
+                    <ItemsControl ItemsSource="{x:Static vm:PairingWizardViewModel.FinishSteps}" Margin="0,14,0,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="18" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="•" Style="{DynamicResource Text.Caption}" />
+                                    <TextBlock Grid.Column="1" Text="{Binding}" Style="{DynamicResource Text.Caption}" TextWrapping="Wrap" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Border Style="{DynamicResource Card}" Margin="0,14,0,0">
+                        <StackPanel>
+                            <TextBlock Text="防火墙（可选）" Style="{DynamicResource Text.CardTitle}" />
+                            <TextBlock Text="{Binding FirewallCommandText}" Style="{DynamicResource Text.Mono}" Margin="0,8,0,0"
+                                       TextWrapping="Wrap" />
+                            <Button Content="复制防火墙命令" Style="{DynamicResource Button.Secondary}" HorizontalAlignment="Left"
+                                    Margin="0,8,0,0" Command="{Binding CopyFirewallCommand}" AutomationProperties.Name="复制防火墙命令" />
+                            <TextBlock Style="{DynamicResource Text.Hint}" Margin="0,10,0,0">
+                                <Run Text="日志目录：" /><Run Text="{Binding LogsDirectory, Mode=OneWay}" />
+                                <LineBreak />
+                                <Run Text="审计目录：" /><Run Text="{Binding AuditDirectory, Mode=OneWay}" />
+                                <LineBreak />
+                                <Run Text="启动方式：手动启动（不自启）——重启电脑后需手动双击 WhaleGo.Executor.exe。" />
+                            </TextBlock>
+                            <TextBlock Text="{Binding FinishRestartNote}" Style="{DynamicResource Text.Caption}" Margin="0,8,0,0"
+                                       Foreground="{DynamicResource Brush.Warning}" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Border Grid.Row="2" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="0,1,0,0" Padding="24,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="{Binding ErrorMessage}" Style="{DynamicResource Text.Error}"
+                               Visibility="{Binding HasError, Converter={StaticResource BoolToVisibility}}" />
+                    <TextBlock Text="{Binding ActionMessage}" Style="{DynamicResource Text.Caption}"
+                               Foreground="{DynamicResource Brush.Success}"
+                               Visibility="{Binding HasActionMessage, Converter={StaticResource BoolToVisibility}}" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button Content="跳过，稍后配置" Style="{DynamicResource Button.Ghost}" Command="{Binding SkipCommand}"
+                            Margin="0,0,8,0" AutomationProperties.Name="跳过配对向导" />
+                    <Button Content="上一步" Style="{DynamicResource Button.Secondary}" Command="{Binding BackCommand}"
+                            Margin="0,0,8,0" AutomationProperties.Name="上一步" />
+                    <Button Content="{Binding NextButtonText}" Style="{DynamicResource Button.Primary}" Command="{Binding NextCommand}"
+                            MinWidth="96" AutomationProperties.Name="下一步或完成" />
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

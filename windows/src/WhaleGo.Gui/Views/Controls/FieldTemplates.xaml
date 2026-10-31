@@ -1,0 +1,203 @@
+<!-- Field row templates. Merged into App.xaml; no code-behind (compiled as a plain BAML resource dictionary). -->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:controls="clr-namespace:WhaleGo.Gui.Views.Controls"
+                    xmlns:views="clr-namespace:WhaleGo.Gui.Views"
+                    xmlns:fields="clr-namespace:WhaleGo.Gui.ViewModels.Fields">
+
+    <!-- Converters + row templates shared by every configuration page. -->
+    <views:InverseBooleanConverter x:Key="InverseBool" />
+    <views:BoolToVisibilityConverter x:Key="BoolToVisibility" />
+    <views:StringToVisibilityConverter x:Key="StringToVisibility" />
+    <views:StepToVisibilityConverter x:Key="StepToVisibility" />
+
+    <Style x:Key="FieldRow" TargetType="Border">
+        <Setter Property="Padding" Value="0,12,0,10" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+    </Style>
+
+    <DataTemplate DataType="{x:Type fields:BoolField}">
+        <Border Style="{DynamicResource FieldRow}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="230" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <controls:ConfigFieldHeader />
+                <StackPanel Grid.Column="1">
+                    <CheckBox Style="{DynamicResource ToggleSwitch}"
+                              IsChecked="{Binding Value, Mode=TwoWay}"
+                              IsEnabled="{Binding IsReadOnly, Converter={StaticResource InverseBool}}"
+                              HorizontalAlignment="Left"
+                              AutomationProperties.Name="{Binding Label}" />
+                    <controls:ConfigFieldFooter />
+                </StackPanel>
+            </Grid>
+        </Border>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type fields:IntField}">
+        <Border Style="{DynamicResource FieldRow}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="230" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <controls:ConfigFieldHeader />
+                <StackPanel Grid.Column="1">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBox Style="{DynamicResource Input.TextBox}" Width="150" Text="{Binding Text, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                                 IsEnabled="{Binding IsReadOnly, Converter={StaticResource InverseBool}}"
+                                 controls:UiProps.HasError="{Binding HasError}"
+                                 AutomationProperties.Name="{Binding Label}" />
+                        <TextBlock Text="{Binding RangeHint}" Style="{DynamicResource Text.Hint}" Margin="10,0,0,0" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <controls:ConfigFieldFooter />
+                </StackPanel>
+            </Grid>
+        </Border>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type fields:StringField}">
+        <Border Style="{DynamicResource FieldRow}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="230" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <controls:ConfigFieldHeader />
+                <StackPanel Grid.Column="1">
+                    <TextBox Style="{DynamicResource Input.TextBox}" Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                             IsEnabled="{Binding IsReadOnly, Converter={StaticResource InverseBool}}"
+                             controls:UiProps.HasError="{Binding HasError}"
+                             AutomationProperties.Name="{Binding Label}" />
+                    <controls:ConfigFieldFooter />
+                </StackPanel>
+            </Grid>
+        </Border>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type fields:ChoiceField}">
+        <Border Style="{DynamicResource FieldRow}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="230" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <controls:ConfigFieldHeader />
+                <StackPanel Grid.Column="1">
+                    <ComboBox Style="{DynamicResource Input.ComboBox}" HorizontalAlignment="Left"
+                              ItemsSource="{Binding Options}" DisplayMemberPath="Label" SelectedValuePath="Value"
+                              SelectedValue="{Binding Value, Mode=TwoWay}"
+                              IsEnabled="{Binding IsReadOnly, Converter={StaticResource InverseBool}}"
+                              AutomationProperties.Name="{Binding Label}" />
+                    <controls:ConfigFieldFooter />
+                </StackPanel>
+            </Grid>
+        </Border>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type fields:GlobListField}">
+        <Border Style="{DynamicResource FieldRow}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="230" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <controls:ConfigFieldHeader />
+                <StackPanel Grid.Column="1">
+                    <ItemsControl ItemsSource="{Binding Items}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBox Style="{DynamicResource Input.TextBox}" Width="320" HorizontalAlignment="Left"
+                                                 Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                                                 controls:UiProps.HasError="{Binding HasError}"
+                                                 AutomationProperties.Name="敏感窗口匹配规则" />
+                                        <TextBlock Text="{Binding Error}" Style="{DynamicResource Text.Error}"
+                                                   Visibility="{Binding HasError, Converter={StaticResource BoolToVisibility}}" />
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Content="移除" Style="{DynamicResource Button.Ghost}" Height="28" MinWidth="0"
+                                            Padding="8,0" Margin="8,0,0,0" VerticalAlignment="Top"
+                                            Command="{Binding DataContext.RemoveCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                            CommandParameter="{Binding}"
+                                            AutomationProperties.Name="移除这条匹配规则" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Button Content="添加规则" Style="{DynamicResource Button.Secondary}" Height="28" MinWidth="0" Padding="10,0"
+                            HorizontalAlignment="Left" Margin="0,2,0,0" Command="{Binding AddCommand}"
+                            IsEnabled="{Binding IsReadOnly, Converter={StaticResource InverseBool}}"
+                            AutomationProperties.Name="添加敏感窗口匹配规则" />
+                    <controls:ConfigFieldFooter />
+                </StackPanel>
+            </Grid>
+        </Border>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type fields:AllowlistField}">
+        <Border Style="{DynamicResource FieldRow}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="230" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <controls:ConfigFieldHeader />
+                <StackPanel Grid.Column="1">
+                    <ItemsControl ItemsSource="{Binding Entries}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="{DynamicResource Brush.Border}" BorderThickness="0,0,0,1" Padding="0,0,0,8" Margin="0,0,0,8">
+                                    <StackPanel>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="150" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox Style="{DynamicResource Input.TextBox}" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                                                     controls:UiProps.HasError="{Binding HasError}" Margin="0,0,8,0"
+                                                     AutomationProperties.Name="启动白名单名称" />
+                                            <TextBox Grid.Column="1" Style="{DynamicResource Input.TextBox}" Text="{Binding Path, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                                                     controls:UiProps.HasError="{Binding HasError}"
+                                                     AutomationProperties.Name="启动白名单程序路径" />
+                                            <Button Grid.Column="2" Content="浏览" Style="{DynamicResource Button.Secondary}" Height="28" MinWidth="0"
+                                                    Padding="10,0" Margin="8,0,0,0" Command="{Binding BrowseCommand}"
+                                                    AutomationProperties.Name="浏览选择程序" />
+                                            <Button Grid.Column="3" Content="移除" Style="{DynamicResource Button.Ghost}" Height="28" MinWidth="0"
+                                                    Padding="8,0" Margin="8,0,0,0" Command="{Binding RemoveCommand}"
+                                                    AutomationProperties.Name="移除白名单条目" />
+                                        </Grid>
+                                        <TextBlock Text="{Binding NameError}" Style="{DynamicResource Text.Error}"
+                                                   Visibility="{Binding NameError, Converter={StaticResource StringToVisibility}}" />
+                                        <TextBlock Text="{Binding PathError}" Style="{DynamicResource Text.Error}"
+                                                   Visibility="{Binding PathError, Converter={StaticResource StringToVisibility}}" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Button Content="添加程序" Style="{DynamicResource Button.Secondary}" Height="28" MinWidth="0" Padding="10,0"
+                            HorizontalAlignment="Left" Command="{Binding AddCommand}"
+                            IsEnabled="{Binding IsReadOnly, Converter={StaticResource InverseBool}}"
+                            AutomationProperties.Name="添加启动白名单条目" />
+                    <controls:ConfigFieldFooter />
+                </StackPanel>
+            </Grid>
+        </Border>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type fields:ConfigField}">
+        <Border Style="{DynamicResource FieldRow}">
+            <TextBlock Text="{Binding Label}" Style="{DynamicResource Text.Secondary}" />
+        </Border>
+    </DataTemplate>
+</ResourceDictionary>

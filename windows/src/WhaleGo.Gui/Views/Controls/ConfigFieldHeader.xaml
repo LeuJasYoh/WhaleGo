@@ -1,0 +1,26 @@
+<UserControl x:Class="WhaleGo.Gui.Views.Controls.ConfigFieldHeader"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <StackPanel Margin="0,0,16,0">
+        <WrapPanel>
+            <TextBlock Text="{Binding Label}" Style="{DynamicResource Text.SectionTitle}" VerticalAlignment="Center"
+                       AutomationProperties.Name="{Binding Label}" />
+            <Border Style="{DynamicResource Badge.Chip}" ToolTip="配置来源（默认 / 配置文件 / 环境变量 / 命令行）">
+                <TextBlock Text="{Binding SourceLabel}" Style="{DynamicResource Text.Badge}" />
+            </Border>
+            <Border Style="{DynamicResource Badge.Chip.Warning}" Visibility="{Binding ShowRestartBadge, Converter={StaticResource BoolToVisibility}}"
+                    ToolTip="{Binding RestartBadge}">
+                <TextBlock Text="{Binding RestartBadge}" Style="{DynamicResource Text.Badge}"
+                           Foreground="{DynamicResource Brush.Warning}" />
+            </Border>
+            <Border Style="{DynamicResource Badge.Chip}" Visibility="{Binding IsReadOnly, Converter={StaticResource BoolToVisibility}}"
+                    ToolTip="该键被环境变量/命令行覆盖：改 GUI 不生效">
+                <TextBlock Text="只读" Style="{DynamicResource Text.Badge}" Foreground="{DynamicResource Brush.Warning}" />
+            </Border>
+        </WrapPanel>
+        <TextBlock Text="{Binding Help}" Style="{DynamicResource Text.Hint}" Margin="0,3,0,0"
+                   Visibility="{Binding Help, Converter={StaticResource StringToVisibility}}" />
+        <TextBlock Text="{Binding SourceDetail}" Style="{DynamicResource Text.Hint}" Margin="0,2,0,0"
+                   Visibility="{Binding SourceDetail, Converter={StaticResource StringToVisibility}}" />
+    </StackPanel>
+</UserControl>

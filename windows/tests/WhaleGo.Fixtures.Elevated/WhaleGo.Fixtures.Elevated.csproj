@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>WhaleGo.Fixtures.Elevated</RootNamespace>
+    <AssemblyName>WhaleGo.Fixtures.Elevated</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationUseCompatibleTextRendering>false</ApplicationUseCompatibleTextRendering>
+    <IsPackable>false</IsPackable>
+    <!-- Fixture app: no package references, no project references (self-contained on purpose). -->
+    <!-- WFO0003: manifest declares PerMonitorV2 on purpose (process DPI awareness is a test fact). -->
+    <NoWarn>$(NoWarn);WFO0003</NoWarn>
+  </PropertyGroup>
+
+</Project>

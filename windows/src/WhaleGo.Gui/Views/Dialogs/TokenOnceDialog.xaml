@@ -1,0 +1,27 @@
+<Window x:Class="WhaleGo.Gui.Views.Dialogs.TokenOnceDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="新的 token" Width="560" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False" UseLayoutRounding="True">
+    <StackPanel Margin="24">
+        <TextBlock x:Name="HeadingText" Style="{DynamicResource Text.PageTitle}" FontSize="17" TextWrapping="Wrap" />
+        <TextBlock x:Name="MessageText" Style="{DynamicResource Text.Body}" Margin="0,10,0,0" />
+        <Grid Margin="0,14,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="TokenBox" Style="{DynamicResource Input.MonoBox}" Height="42" VerticalAlignment="Center"
+                     AutomationProperties.Name="一次性显示的 token" />
+            <Button Grid.Column="1" x:Name="CopyButton" Content="复制" Style="{DynamicResource Button.Primary}"
+                    Margin="8,0,0,0" VerticalAlignment="Center" Click="OnCopy"
+                    AutomationProperties.Name="复制新 token" />
+        </Grid>
+        <TextBlock x:Name="StatusText" Style="{DynamicResource Text.Caption}" Margin="0,8,0,0"
+                   Foreground="{DynamicResource Brush.Success}" Visibility="Collapsed" />
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
+            <Button Content="我已保存" Style="{DynamicResource Button.Secondary}" IsDefault="True" Click="OnClose"
+                    AutomationProperties.Name="我已保存并关闭" />
+        </StackPanel>
+    </StackPanel>
+</Window>
