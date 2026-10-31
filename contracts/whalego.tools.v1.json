@@ -1,0 +1,632 @@
+{
+  "contract": "whalego.tools",
+  "contract_version": "1.2",
+  "protocol_version": 1,
+  "transport": "mcp-streamable-http",
+  "notes": [
+    "动作类工具（go_act）成功 = isError=false 且 action_receipt.dispatch_status=accepted；查询类（health/apps/windows/observe/stop）成功 = isError=false 且文本首行 OK:；go_launch 是写动作（审计 fail-closed）但无 dispatch_status，成功判据同查询类。",
+    "错误对象 schema_version=whalego-error-v1；not_sent/possibly_sent 时内嵌完整 action_receipt。",
+    "文本 content 首行必须是 OK: 或 ERROR[<code>]:（AstrBot 不读 isError）；模型可见文本 = 简体中文 + 英文前缀/错误码。",
+    "模型不传 frame_id；坐标动作使用会话最近一次带截图观察绑定的内部 frame（图片像素，截客户区）。",
+    "动作进入派发后该会话 state/frame 立即失效，需重新 go_observe；mismatched 只可 reobserve，不可重放。",
+    "标 x-internal:true 的参数由插件按 umo 注入，模型面 schema 由插件过滤掉，模型不可见/不可传。",
+    "控制三态：readonly（READONLY_MODE）/ paused（PAUSED，本机 GUI）/ stopped（SESSION_STOPPED，本机或模型仅停本会话）；恢复只允许本机。",
+    "截图三开关 AND（执行器 enabled、模型 include_screenshot 或执行器 defaultInclude、插件 allow_screenshot）；自身进程窗口永不观察/截图。",
+    "契约版本 1.2 对应 PROTOCOL.md v1.2；模型使用规则见 PROTOCOL §12。"
+  ],
+  "tools": [
+    {
+      "name": "go_health",
+      "description": "返回 WhaleGo 执行器的健康状态、协议版本、系统环境与能力清单。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "response_schema_version": "whalego-health-v1"
+    },
+    {
+      "name": "go_apps",
+      "description": "列出可操控的应用（app_id、名称、pid、exe/aumid、前台状态）。需要窗口列表时用 include_windows=true。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "include_windows": {
+            "type": "boolean",
+            "default": false,
+            "description": "是否附带每个应用的窗口列表"
+          }
+        },
+        "additionalProperties": false
+      },
+      "response_schema_version": "whalego-apps-v1"
+    },
+    {
+      "name": "go_windows",
+      "description": "列出顶层窗口（window_id、标题、类名、pid、是否前台/最小化、bounds、dpi）。可按 app_id 过滤。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "app_id": {
+            "type": "string",
+            "description": "应用 id 过滤；省略则列全部"
+          }
+        },
+        "additionalProperties": false
+      },
+      "response_schema_version": "whalego-windows-v1"
+    },
+    {
+      "name": "go_observe",
+      "description": "观察目标窗口的 UI 自动化树（唯一观察入口）。返回 state_id（后续动作必须回传）与可选截图（受三开关限制）；坐标动作前必须做一次 include_screenshot=true 的观察。读长文用 max_value_chars=4000；index 只在本次 state_id 内有效；动作后状态失效。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "window_id": {
+            "type": "string",
+            "description": "目标窗口 id（与 app_id 二选一）"
+          },
+          "app_id": {
+            "type": "string",
+            "description": "目标应用 id（多窗口歧义时报 AMBIGUOUS_APP）"
+          },
+          "include_screenshot": {
+            "type": "boolean",
+            "default": false,
+            "description": "是否返回窗口截图（PNG）"
+          },
+          "settle_ms": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2000,
+            "default": 250,
+            "description": "等待 UI 稳定的上限毫秒；0 表示不等待"
+          },
+          "max_elements": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2000,
+            "default": 300,
+            "description": "元素预算上限"
+          },
+          "max_value_chars": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4000,
+            "default": 48,
+            "description": "elements[].value 单值上限；读长文用 4000"
+          }
+        },
+        "anyOf": [
+          {
+            "required": [
+              "window_id"
+            ]
+          },
+          {
+            "required": [
+              "app_id"
+            ]
+          }
+        ],
+        "additionalProperties": false
+      },
+      "response_schema_version": "whalego-observe-v1"
+    },
+    {
+      "name": "go_act",
+      "description": "在观察到的窗口上执行单次动作（唯一动作通道）。所有 op 必须带 target；type/key 只接受 element。成功返回回执（accepted），动作后必须重新 go_observe；possibly_sent 禁止重试；mismatched 只可 reobserve。",
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "op"
+        ],
+        "properties": {
+          "op": {
+            "type": "string",
+            "enum": [
+              "click",
+              "set_value",
+              "type",
+              "key",
+              "scroll"
+            ]
+          },
+          "target": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": [
+                  "kind",
+                  "index",
+                  "state_id"
+                ],
+                "properties": {
+                  "kind": {
+                    "const": "element"
+                  },
+                  "index": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "state_id": {
+                    "type": "string",
+                    "pattern": "^st-[0-9a-f]{8}$"
+                  }
+                },
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "required": [
+                  "kind",
+                  "x",
+                  "y"
+                ],
+                "properties": {
+                  "kind": {
+                    "const": "coordinate"
+                  },
+                  "x": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "y": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "additionalProperties": false
+              }
+            ],
+            "description": "动作目标：元素（index+state_id）或坐标（x,y，基于最近一次带截图观察的图片像素）"
+          },
+          "args": {
+            "type": "object",
+            "description": "按 op 定义：click{button,count,modifiers} set_value{value} type{text} key{keys} scroll{direction,pages}"
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "op": {
+                  "const": "click"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "target"
+              ],
+              "properties": {
+                "args": {
+                  "type": "object",
+                  "required": [
+                    "button",
+                    "count"
+                  ],
+                  "properties": {
+                    "button": {
+                      "type": "string",
+                      "enum": [
+                        "left"
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "enum": [
+                        1
+                      ]
+                    },
+                    "modifiers": {
+                      "type": "string",
+                      "enum": [
+                        ""
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "op": {
+                  "const": "set_value"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "target"
+              ],
+              "properties": {
+                "target": {
+                  "type": "object",
+                  "required": [
+                    "kind",
+                    "index",
+                    "state_id"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "const": "element"
+                    },
+                    "index": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "state_id": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "args": {
+                  "type": "object",
+                  "required": [
+                    "value"
+                  ],
+                  "properties": {
+                    "value": {
+                      "type": "string",
+                      "maxLength": 4000
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "op": {
+                  "const": "type"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "target",
+                "args"
+              ],
+              "properties": {
+                "args": {
+                  "type": "object",
+                  "required": [
+                    "text"
+                  ],
+                  "properties": {
+                    "text": {
+                      "type": "string",
+                      "maxLength": 1500
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "op": {
+                  "const": "key"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "target",
+                "args"
+              ],
+              "properties": {
+                "args": {
+                  "type": "object",
+                  "required": [
+                    "keys"
+                  ],
+                  "properties": {
+                    "keys": {
+                      "type": "string",
+                      "enum": [
+                        "enter",
+                        "tab",
+                        "escape",
+                        "backspace",
+                        "delete",
+                        "up",
+                        "down",
+                        "left",
+                        "right",
+                        "pageup",
+                        "pagedown",
+                        "home",
+                        "end",
+                        "space"
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "op": {
+                  "const": "scroll"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "target"
+              ],
+              "properties": {
+                "args": {
+                  "type": "object",
+                  "required": [
+                    "direction"
+                  ],
+                  "properties": {
+                    "direction": {
+                      "type": "string",
+                      "enum": [
+                        "up",
+                        "down"
+                      ]
+                    },
+                    "pages": {
+                      "type": "number",
+                      "minimum": 0.25,
+                      "maximum": 20,
+                      "default": 1
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        ],
+        "additionalProperties": false
+      },
+      "response_schema_version": "whalego-act-v1"
+    },
+    {
+      "name": "go_launch",
+      "description": "启动 allowlist 内应用（app）或激活已有应用主窗口（app_id），有界等待窗口出现。写动作：审计 fail-closed；不接受路径/参数；LAUNCH_TIMEOUT 禁止重试。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "app": {
+            "type": "string",
+            "description": "启动 allowlist 内应用（go_health.capabilities.launch_allowlist 可查）"
+          },
+          "app_id": {
+            "type": "string",
+            "description": "激活已有应用的主窗口"
+          },
+          "wait_ms": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000,
+            "default": 5000,
+            "description": "等待主窗口出现的上限毫秒"
+          }
+        },
+        "oneOf": [
+          {
+            "required": [
+              "app"
+            ]
+          },
+          {
+            "required": [
+              "app_id"
+            ]
+          }
+        ],
+        "additionalProperties": false
+      },
+      "response_schema_version": "whalego-launch-v1"
+    },
+    {
+      "name": "go_stop",
+      "description": "停止动作（kill switch）。模型调用只停本会话（scope 由插件注入=session），全局停止由本机热键/托盘/管理员命令触发；观察仍可用；恢复只允许在本机 GUI/托盘（二次确认）。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "停止原因（写入审计）"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "session",
+              "all"
+            ],
+            "default": "session",
+            "x-internal": true,
+            "description": "内部参数（插件注入）：模型调用固定 session；all 仅本机/管理员命令使用"
+          }
+        },
+        "additionalProperties": false
+      },
+      "response_schema_version": "whalego-stop-v1"
+    }
+  ],
+  "advisories": [
+    "tree_budget_exceeded",
+    "screenshot_failed",
+    "capture_degraded",
+    "not_settled",
+    "main_fallback",
+    "uia_unavailable",
+    "screenshot_disabled",
+    "screenshot_suppressed"
+  ],
+  "error_codes": {
+    "INVALID_ARGUMENT": {
+      "retry": "never",
+      "dispatch": "not_sent"
+    },
+    "UNSUPPORTED_PROTOCOL": {
+      "retry": "never",
+      "dispatch": "not_sent"
+    },
+    "UNSUPPORTED_ACTION": {
+      "retry": "never",
+      "dispatch": "not_sent"
+    },
+    "SESSION_NOT_FOUND": {
+      "retry": "never",
+      "dispatch": "not_sent"
+    },
+    "SESSION_EXPIRED": {
+      "retry": "never",
+      "dispatch": "not_sent"
+    },
+    "SESSION_STOPPED": {
+      "retry": "never",
+      "dispatch": "not_sent"
+    },
+    "PAUSED": {
+      "retry": "never",
+      "dispatch": "not_sent"
+    },
+    "SESSION_LOCKED": {
+      "retry": "never",
+      "dispatch": "not_sent"
+    },
+    "CONTROLLER_BUSY": {
+      "retry": "retry",
+      "dispatch": "not_sent"
+    },
+    "READONLY_MODE": {
+      "retry": "never",
+      "dispatch": "not_sent"
+    },
+    "RATE_LIMITED": {
+      "retry": "retry",
+      "dispatch": "not_sent"
+    },
+    "AUDIT_UNAVAILABLE": {
+      "retry": "retry",
+      "dispatch": "not_sent"
+    },
+    "STALE_STATE": {
+      "retry": "reobserve",
+      "dispatch": "not_sent"
+    },
+    "FRAME_NOT_ACTIONABLE": {
+      "retry": "reobserve",
+      "dispatch": "not_sent"
+    },
+    "ELEMENT_UNAVAILABLE": {
+      "retry": "reobserve",
+      "dispatch": "not_sent"
+    },
+    "ELEMENT_ACTION_UNAVAILABLE": {
+      "retry": "reobserve",
+      "dispatch": "not_sent"
+    },
+    "WINDOW_NOT_FOUND": {
+      "retry": "reobserve",
+      "dispatch": "not_sent"
+    },
+    "WINDOW_CHANGED": {
+      "retry": "reobserve",
+      "dispatch": "not_sent"
+    },
+    "APP_NOT_FOUND": {
+      "retry": "reobserve",
+      "dispatch": "not_sent"
+    },
+    "AMBIGUOUS_APP": {
+      "retry": "never",
+      "dispatch": "not_sent"
+    },
+    "LAUNCH_FAILED": {
+      "retry": "never",
+      "dispatch": "not_sent"
+    },
+    "LAUNCH_TIMEOUT": {
+      "retry": "never",
+      "dispatch": "not_sent"
+    },
+    "FOREGROUND_REQUIRED": {
+      "retry": "reobserve",
+      "dispatch": "not_sent"
+    },
+    "UIPI_BLOCKED": {
+      "retry": "never",
+      "dispatch": "not_sent"
+    },
+    "ACTION_TIMEOUT": {
+      "retry": "retry",
+      "dispatch": "not_sent"
+    },
+    "DISPATCH_UNCERTAIN": {
+      "retry": "reobserve",
+      "dispatch": "possibly_sent"
+    },
+    "INTERNAL": {
+      "retry": "never",
+      "dispatch": "not_sent_or_possibly_sent"
+    }
+  },
+  "freshness": {
+    "state_ttl_seconds": 120,
+    "frame_ttl_seconds": 60,
+    "invalidated_by_any_act": true,
+    "title_change_invalidates": false,
+    "geometry_or_dpi_change_invalidates_frame": true,
+    "window_switch_drops_previous_state": true,
+    "no_screenshot_observe_keeps_frame": true,
+    "epoch_invalidation": true,
+    "stop_or_pause_invalidates": true
+  },
+  "privacy": {
+    "mask_password_fields": true,
+    "screenshot_default": true,
+    "screenshot_switch_semantics": "and",
+    "sensitive_window_screenshot": "suppressed_with_advisory",
+    "self_process_windows_excluded": true,
+    "token_in_config": false,
+    "token_plaintext_file": "%LOCALAPPDATA%/WhaleGo/secrets.json",
+    "input_text_logged": false
+  },
+  "control_states": {
+    "readonly": { "error_code": "READONLY_MODE", "requires_local_resume": false, "persisted": false },
+    "paused": { "error_code": "PAUSED", "requires_local_resume": true, "persisted": false },
+    "stopped_session": { "error_code": "SESSION_STOPPED", "scope": "session", "requires_local_resume": true, "persisted": false },
+    "stopped_global": { "error_code": "SESSION_STOPPED", "scope": "all", "requires_local_resume": true, "persisted": true }
+  },
+  "internal_params": [
+    "session_id",
+    "request_id",
+    "scope"
+  ],
+  "verification": {
+    "status_enum": ["verified", "mismatched", "unverified"],
+    "set_value": "readback_equals_requested",
+    "type_element": "readback_contains_text",
+    "click_key_scroll": "unverified",
+    "mismatched_replay_allowed": false
+  },
+  "plugin_error_codes": [
+    "EXECUTOR_UNREACHABLE",
+    "EXECUTOR_TIMEOUT",
+    "AUTH_FAILED",
+    "PROTOCOL_MISMATCH",
+    "CONNECTION_LOST"
+  ]
+}
