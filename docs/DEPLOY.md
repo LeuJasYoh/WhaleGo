@@ -205,15 +205,18 @@ AstrBot WebUI →「插件管理」→ 上传 astrbot_plugin_whalego 的 zip（�
               "maxImageBytes": 200000, "toolTimeoutSeconds": 40 },
   "screenshot": { "enabled": true, "mode": "printwindow", "defaultInclude": false },
   "privacy": { "maskPasswordFields": true, "sensitiveWindows": ["*password*", "*bank*"] },
-  "audit": { "enabled": true, "dir": "%LOCALAPPDATA%\\WhaleGo\\logs", "requireDurableForActions": true },
+  "audit": { "enabled": true, "dir": "%EXEDIR%\\logs", "requireDurableForActions": true },
   "hotkeys": { "enabled": true, "emergencyStop": "Ctrl+Alt+Shift+F12", "openSettings": null },
   "ui": { "notificationsLevel": "important", "theme": "system" },
-  "logging": { "level": "information", "dir": "%LOCALAPPDATA%\\WhaleGo\\logs" },
+  "logging": { "level": "information", "dir": "%EXEDIR%\\logs" },
   "launch": { "allowlist": [ { "name": "notepad", "path": "C:\\Windows\\System32\\notepad.exe" } ] }
 }
 ```
 
 要点：
+- 日志/审计默认写入 **可执行程序同目录的 `logs/`**（`%EXEDIR%\logs`，正常便携运行）；运行目录需可写，
+  若放在 `Program Files` 等只读目录请在 GUI「隐私与审计」把 `audit.dir`/`logging.dir` 改成可写绝对路径。
+  用 `--config`/`WHALEGO_DATA_DIR` 隔离运行（测试/E2E）时日志在隔离 data root 的 `logs/`。
 - token 明文**不进** config.json（只存 sha256）；明文在 `%LOCALAPPDATA%\WhaleGo\secrets.json`（仅当前用户 ACL）。
 - `launch.allowlist` 是模型 go_launch 的**唯一启动方式**（只接受 name；默认 notepad/calc/mspaint/explorer）。
   Edge/微信等常用程序可按 name+绝对路径格式追加（本机已加 `edge`、`weixin`）。

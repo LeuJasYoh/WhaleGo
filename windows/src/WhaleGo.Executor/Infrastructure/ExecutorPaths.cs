@@ -4,8 +4,10 @@ using System.IO;
 namespace WhaleGo.Executor.Infrastructure;
 
 /// <summary>
-/// Resolved host filesystem layout (config under %APPDATA%\WhaleGo, runtime data under %LOCALAPPDATA%\WhaleGo).
-/// Tests isolate via WHALEGO_DATA_DIR / --config: the data root then defaults to the config file directory.
+/// Resolved host filesystem layout: config under %APPDATA%\WhaleGo, runtime data under %LOCALAPPDATA%\WhaleGo.
+/// Logs (executor log + audit JSONL + crash logs) live next to the executable in a normal run
+/// (<c>AppContext.BaseDirectory\logs</c>) so they ship with the app; tests/E2E that isolate via
+/// WHALEGO_DATA_DIR or --config keep logs under the isolated data root instead.
 /// </summary>
 public sealed record ExecutorPaths(
     string ConfigRoot,
@@ -48,6 +50,14 @@ public sealed record ExecutorPaths(
         var dataRoot = dataRootOverride
             ?? (!string.IsNullOrWhiteSpace(configPath) ? configRoot : Path.Combine(localAppData, "WhaleGo"));
 
+        // Normal portable run: logs next to WhaleGo.Executor.exe (ship-along folder).
+        // Isolated runs (--config or WHALEGO_DATA_DIR) keep logs inside the isolated root so tests never
+        // write into the build output and cleanup stays trivial.
+        var isolated = dataRootOverride is not null || !string.IsNullOrWhiteSpace(configPath);
+        var logsRoot = isolated
+            ? Path.Combine(dataRoot, "logs")
+            : Path.Combine(AppContext.BaseDirectory, "logs");
+
         return new ExecutorPaths(
             ConfigRoot: configRoot,
             ConfigPath: configFile,
@@ -55,8 +65,8 @@ public sealed record ExecutorPaths(
             SecretsPath: Path.Combine(dataRoot, "secrets.json"),
             ControlStatePath: Path.Combine(dataRoot, "control-state.json"),
             UiStatePath: Path.Combine(dataRoot, "ui-state.json"),
-            LogsRoot: Path.Combine(dataRoot, "logs"),
-            DefaultAuditDir: Path.Combine(dataRoot, "logs"));
+            LogsRoot: logsRoot,
+            DefaultAuditDir: logsRoot);
     }
 
     public void EnsureDirectories()
@@ -66,7 +76,10 @@ public sealed record ExecutorPaths(
         Directory.CreateDirectory(LogsRoot);
     }
 
-    /// <summary>Resolve a configured directory (expands %ENV%, relative values under the data root); null/empty falls back.</summary>
+    /// <summary>
+    /// Resolve a configured directory: expands <c>%EXEDIR%</c> (the executable folder) and %ENV% macros,
+    /// relative values under the data root; null/empty/unknown-macro falls back.
+    /// </summary>
     public static string ResolveDirectory(string? raw, string fallback, string dataRoot)
     {
         if (string.IsNullOrWhiteSpace(raw))
@@ -74,7 +87,8 @@ public sealed record ExecutorPaths(
             return fallback;
         }
 
-        var expanded = Environment.ExpandEnvironmentVariables(raw.Trim());
+        var expanded = raw.Trim().Replace("%EXEDIR%", AppContext.BaseDirectory, StringComparison.OrdinalIgnoreCase);
+        expanded = Environment.ExpandEnvironmentVariables(expanded);
         if (expanded.Length == 0 || expanded.Contains('%'))
         {
             return fallback;

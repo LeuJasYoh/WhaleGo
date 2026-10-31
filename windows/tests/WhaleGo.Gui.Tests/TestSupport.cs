@@ -78,7 +78,7 @@ internal static class TestData
         [ConfigKeys.PrivacyMaskPasswordFields] = true,
         [ConfigKeys.PrivacySensitiveWindows] = new[] { "*password*", "*bank*" },
         [ConfigKeys.AuditEnabled] = true,
-        [ConfigKeys.AuditDir] = @"%LOCALAPPDATA%\WhaleGo\logs",
+        [ConfigKeys.AuditDir] = @"%EXEDIR%\logs",
         [ConfigKeys.AuditRequireDurableForActions] = true,
         [ConfigKeys.HotkeysEnabled] = true,
         [ConfigKeys.HotkeysEmergencyStop] = "Ctrl+Alt+Shift+F12",

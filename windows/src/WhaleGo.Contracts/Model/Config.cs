@@ -67,7 +67,8 @@ public static class ConfigDefaults
     public const string ScreenshotMode = "printwindow";
     public const bool ScreenshotDefaultInclude = false;
     public const bool PrivacyMaskPasswordFields = true;
-    public const string AuditDir = "%LOCALAPPDATA%\\WhaleGo\\logs";
+    /// <summary>Logs live next to the executable by default (%EXEDIR% is resolved by the executor).</summary>
+    public const string AuditDir = "%EXEDIR%\\logs";
     public const bool AuditEnabled = true;
     public const bool AuditRequireDurableForActions = true;
     public const bool HotkeysEnabled = true;

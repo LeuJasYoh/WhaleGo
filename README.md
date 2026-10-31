@@ -1,7 +1,7 @@
 # WhaleGo —— 让容器里的模型操控你的 Windows 桌面
 
 > 状态：**P0+P1 实现完成（README v0.5 / 协议 v1.2 / contract_version=1.2 / GUI v0.3），本机验收通过**
-> （构建 + 382 个 .NET 测试 + 150 个插件测试 + 契约门禁 + 86 条 E2E + 容器→宿主链路；证据见
+> （构建 + 385 个 .NET 测试 + 150 个插件测试 + 契约门禁 + 86 条 E2E + 容器→宿主链路；证据见
 > [docs/evidence/implementation-e2e.md](docs/evidence/implementation-e2e.md)）。
 > 目标：AstrBot（Docker 容器）内的模型通过 MCP 调用 Windows 上的常驻执行器，完成"看屏幕（UIA 树/截图）→ 点鼠标 → 敲键盘"。
 > 启动方式：**手动启动**（不做开机自启）；设置窗口 + WinForms 托盘常驻，关闭窗口 = 隐藏到托盘。
@@ -62,6 +62,7 @@ Windows 执行器 WhaleGo.Executor（C#/.NET 10，单进程：WinForms 托盘 + 
    ├─ L3 Domain（新鲜度/回执状态机/裁剪渲染等纯规则，位于 WhaleGo.Contracts.Domain）
    └─ L2 Platform（Win32/UIA/截图/输入，唯一碰原生 API 的层）
 配置文件：config.json（哈希 token）+ secrets.json（明文 token，用户 ACL）+ control-state.json（停机持久化）
+日志/审计：默认在可执行程序同目录 `logs/`（隔离测试时在 data root 下）
 ```
 
 - 工具面：`go_health / go_apps / go_windows / go_observe / go_act / go_launch / go_stop`（7 个必需；`go_` 是 WhaleGo 品牌前缀，**不是 Go 语言**）；
@@ -78,7 +79,7 @@ Windows 执行器 WhaleGo.Executor（C#/.NET 10，单进程：WinForms 托盘 + 
 | 验收块 | 结果 |
 |---|---|
 | 解决方案构建（Debug/Release，含测试/夹具） | ✅ 0 warnings / 0 errors |
-| .NET 测试（Contracts 82 + Platform 113 + Executor 62 + Gui 125） | ✅ 382 passed / 0 failed / 0 skipped |
+| .NET 测试（Contracts 82 + Platform 113 + Executor 65 + Gui 125） | ✅ 385 passed / 0 failed / 0 skipped |
 | AstrBot 插件（pytest + ruff + 容器内真实 AstrBot/mcp 1.30 导入与链路冒烟） | ✅ 150 passed；ruff clean；容器→宿主 12/12 链路 PASS |
 | 契约门禁 `tools/list` vs `contracts/whalego.tools.v1.json` | ✅ PASS（7 工具、描述、x-internal-stripped schema、无内部参数） |
 | E2E（真实执行器 + 真实 mcp 1.30 客户端；夹具动作/截图/回执/STALE/只读/租约/停止） | ✅ 86 passed / 0 failed / 0 skipped |

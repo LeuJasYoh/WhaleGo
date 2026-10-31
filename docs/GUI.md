@@ -129,7 +129,7 @@ WhaleGo.Executor.exe（WinExe，用户交互会话 Session 1；UseWPF + UseWindo
 
 退出确认文案：`退出后，模型将立刻无法操作你的桌面（正在进行的动作可能已发出，不会自动回滚）。` 有租约时补 `当前有会话正在操作（wg-xxxx，剩 12s）。`；
 按钮 `[取消]（默认）` / `[退出]`，Enter 不默认确认（安全默认）；流程：停监听 → 等在途请求（≤3s）→ 保存 control-state → 释放资源 → 退出。
-崩溃与重启：进程没了就没有被控能力（fail-closed），所以只做“别静默 + 能复盘”——三处全局异常钩子写 `%LOCALAPPDATA%\WhaleGo\logs\crash-*.log`（不含 token/明文）；
+崩溃与重启：进程没了就没有被控能力（fail-closed），所以只做“别静默 + 能复盘”——三处全局异常钩子写 `%EXEDIR%\logs\crash-*.log`（与可执行程序同目录；不含 token/明文）；
 `run.lock`（PID+时间）检测上次异常退出；崩溃不自动恢复 control-state（崩前是 stopped，重启仍 stopped）；「立即重启」= 起新实例（不带 `--headless`）+ 本实例 `Shutdown()`，新实例等互斥 ≤10s。
 
 ### 4.4 不做开机自启（已裁决 Q5）
@@ -253,7 +253,7 @@ WhaleGo.Gui  ──只引用──→  WhaleGo.Contracts（IExecutorControl / IW
 | 隐私 | `privacy.maskPasswordFields` | bool | `true` | 改 false 需确认（违反 day-1 隐私规则） | 热 | DESIGN §5.8、PROTOCOL §11 |
 | 隐私 | `privacy.sensitiveWindows` | string[] | `["*password*","*bank*"]` | glob 通配，每项 1–64 字符；命中时截图被抑制（`screenshot_suppressed`） | 热 | DESIGN §5.8、PROTOCOL §11 |
 | 审计 | `audit.enabled` | bool | `true` | 关闭需二次确认 | 热 | DESIGN §5.8、§5.7 |
-| 审计 | `audit.dir` | string | `%LOCALAPPDATA%\WhaleGo\logs` | 可写目录；不可写 → 保存失败并解释 fail-closed 后果 | 需重启 | DESIGN §5.7、§5.8 |
+| 审计 | `audit.dir` | string | `%EXEDIR%\logs`（可执行程序同目录） | 可写目录；不可写 → 保存失败并解释 fail-closed 后果 | 需重启 | DESIGN §5.7、§5.8 |
 | 审计 | `audit.requireDurableForActions` | bool | `true` | 高级危险项：改 false 需输入确认（§9.7） | 热 | DESIGN §5.8、§5.7 |
 | 热键 | `hotkeys.enabled` | bool | `true` | headless 时默认 false | 热 | DESIGN §5.8 |
 | 热键 | `hotkeys.emergencyStop` | string | `"Ctrl+Alt+Shift+F12"` | RegisterHotKey 语法（修饰键 + 单键）；冲突/非法 → 告警并标红 | 热 | DESIGN §5.8 |
@@ -261,7 +261,7 @@ WhaleGo.Gui  ──只引用──→  WhaleGo.Contracts（IExecutorControl / IW
 | 通知 | `ui.notificationsLevel` | enum | `important` | `off` / `important` / `all` | 热 | DESIGN §5.8 |
 | 外观 | `ui.theme` | enum | `system` | **新增（D21）**：`system` / `light` / `dark`；跟随系统或强制；**热切换**（§10.7） | 热 | DESIGN §5.8 v0.5（已落地） |
 | 日志 | `logging.level` | enum | `information` | trace/debug/information/warning/error | 热 | DESIGN §5.8 |
-| 日志 | `logging.dir` | string | `%LOCALAPPDATA%\WhaleGo\logs` | 可写目录 | 需重启 | DESIGN §5.7、§5.8 |
+| 日志 | `logging.dir` | string | `%EXEDIR%\logs`（可执行程序同目录） | 可写目录 | 需重启 | DESIGN §5.7、§5.8 |
 | 启动 | `launch.allowlist` | list[{name,path}] | notepad/calc/mspaint/explorer | 模型只能按 name 启动；path 必须绝对路径且存在；GUI 增删/校验 | 热 | PROTOCOL §3.8、DESIGN §5.8 |
 
 ### 6.3 D21 带来的配置增删（已裁决，**已落地 DESIGN §5.8 v0.5**）

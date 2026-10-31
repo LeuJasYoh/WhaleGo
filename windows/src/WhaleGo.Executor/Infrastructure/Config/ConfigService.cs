@@ -15,6 +15,9 @@ namespace WhaleGo.Executor.Infrastructure.Config;
 /// </summary>
 public sealed class ConfigService : IConfigStore
 {
+    /// <summary>Pre-2026-11 configs stored %LOCALAPPDATA%\\WhaleGo\\logs; keep mapping it to the effective log root.</summary>
+    private const string LegacyAuditDir = "%LOCALAPPDATA%\\WhaleGo\\logs";
+
     private static readonly string[] VisibleKeys =
     [
         ConfigKeys.ListenAddress, ConfigKeys.ListenPort, ConfigKeys.ListenHealthzRequireToken,
@@ -287,7 +290,8 @@ public sealed class ConfigService : IConfigStore
         }
 
         var trimmed = raw.Trim();
-        if (string.Equals(trimmed, ConfigDefaults.AuditDir, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(trimmed, ConfigDefaults.AuditDir, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(trimmed, LegacyAuditDir, StringComparison.OrdinalIgnoreCase))
         {
             return fallback;
         }

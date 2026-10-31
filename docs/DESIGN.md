@@ -398,7 +398,7 @@ go_act(op, target, args)
 
 ### 5.7 审计与日志
 
-- `%LOCALAPPDATA%\WhaleGo\logs\audit-YYYYMMDD.jsonl`：`{ts, session_id, tool, op, window_id, app_id, target_kind,
+- `%EXEDIR%\logs\audit-YYYYMMDD.jsonl`（默认与可执行程序同目录；`--config`/`WHALEGO_DATA_DIR` 隔离时在 data root 下）：`{ts, session_id, tool, op, window_id, app_id, target_kind,
   action_sent, dispatch_status, method, promoted, verification, elapsed_ms, error_code}`；
   **control 事件**（pause/resume/stop/token 轮换/配置修改/主题切换）单独记 `{ts, event, reason, actor=local|admin}`（D15）。
 - **不记录**：输入文本明文（只记长度/哈希）、剪贴板内容、截图字节（只记尺寸/预算）、token。
@@ -427,10 +427,10 @@ token 不进工具参数/返回值/日志/审计/托盘 tooltip（D13）。
               "toolTimeoutSeconds": 40 },
   "screenshot": { "enabled": true, "mode": "printwindow", "defaultInclude": false },
   "privacy": { "maskPasswordFields": true, "sensitiveWindows": ["*password*", "*bank*"] },
-  "audit": { "enabled": true, "dir": "%LOCALAPPDATA%\\WhaleGo\\logs", "requireDurableForActions": true },
+  "audit": { "enabled": true, "dir": "%EXEDIR%\\logs", "requireDurableForActions": true },
   "hotkeys": { "enabled": true, "emergencyStop": "Ctrl+Alt+Shift+F12", "openSettings": null },
   "ui": { "notificationsLevel": "important", "theme": "system" },
-  "logging": { "level": "information", "dir": "%LOCALAPPDATA%\\WhaleGo\\logs" },
+  "logging": { "level": "information", "dir": "%EXEDIR%\\logs" },
   "launch": { "allowlist": [ { "name": "notepad", "path": "C:\\Windows\\System32\\notepad.exe" } ] }
 }
 ```

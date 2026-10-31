@@ -151,7 +151,7 @@ public sealed class ConfigRulesTests
     {
         Assert.NotNull(ConfigRules.ValidateAuditDirectory("relative\\logs"));
         Assert.NotNull(ConfigRules.ValidateAuditDirectory(""));
-        Assert.Null(ConfigRules.ValidateAuditDirectory(@"%LOCALAPPDATA%\WhaleGo\logs"));
+        Assert.Null(ConfigRules.ValidateAuditDirectory(@"%EXEDIR%\logs"));
     }
 
     [Fact]

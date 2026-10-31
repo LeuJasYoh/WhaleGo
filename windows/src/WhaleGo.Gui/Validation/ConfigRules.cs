@@ -237,10 +237,11 @@ public static class ConfigRules
             return "目录不能为空";
         }
 
-        var expanded = Environment.ExpandEnvironmentVariables(text);
+        var expanded = text.Replace("%EXEDIR%", AppContext.BaseDirectory, StringComparison.OrdinalIgnoreCase);
+        expanded = Environment.ExpandEnvironmentVariables(expanded);
         if (!Path.IsPathRooted(expanded))
         {
-            return "必须是绝对路径（支持 %LOCALAPPDATA% 等环境变量）";
+            return "必须是绝对路径或 %EXEDIR%\\logs（支持 %LOCALAPPDATA% 等环境变量）";
         }
 
         return null;

@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 namespace WhaleGo.Executor.Host;
 
-/// <summary>Crash evidence in %LOCALAPPDATA%\WhaleGo\logs (never tokens/plaintext); fail-closed means no auto-recovers.</summary>
+/// <summary>Crash evidence in the effective log directory (next to the executable in a normal run; never tokens/plaintext).</summary>
 public static class CrashLog
 {
     private static readonly object Lock = new();

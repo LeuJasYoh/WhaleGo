@@ -169,7 +169,7 @@ tags: [mcp, computer-use, windows, automation]
 | C# 解决方案/项目 | `WhaleGo.sln` / `WhaleGo.Contracts` / `WhaleGo.Platform` / `WhaleGo.Executor` |
 | 测试项目/夹具 | `WhaleGo.Contracts.Tests` / `WhaleGo.Platform.Tests` / `WhaleGo.Executor.Tests` / `WhaleGo.Fixtures.WinForms` |
 | 环境变量 | `WHALEGO_*`（`WHALEGO_CONFIG`、`WHALEGO_TOKEN`…） |
-| 配置/日志目录 | `%APPDATA%\WhaleGo`、`%LOCALAPPDATA%\WhaleGo\logs` |
+| 配置/日志目录 | 配置 `%APPDATA%\WhaleGo`；secrets/control-state/ui-state `%LOCALAPPDATA%\WhaleGo`；日志/审计 `%EXEDIR%\logs`（可执行程序同目录） |
 | 契约文件 | `contracts/whalego.tools.v1.json` |
 | GUI 项目/测试 | `WhaleGo.Gui` / `WhaleGo.Gui.Tests`（WPF 设置窗口 + WinForms 托盘，只引用 Contracts；窗口标题「WhaleGo 设置」；浅/深主题） |
 | 配置/密钥/状态文件 | `%APPDATA%\WhaleGo\config.json`、`%LOCALAPPDATA%\WhaleGo\secrets.json`、`%LOCALAPPDATA%\WhaleGo\control-state.json` |
