@@ -12,9 +12,7 @@ public sealed record HealthCapabilities(
     IReadOnlyList<string> Observation,
     IReadOnlyList<string> Actions,
     IReadOnlyList<string> Targets,
-    IReadOnlyList<string> Launch,
-    IReadOnlyList<string> LaunchAllowlist,
-    string LaunchMode = "allowlist");
+    IReadOnlyList<string> Launch);
 
 public sealed record HealthControllerInfo(bool Held, bool Mine, long ExpiresInMs);
 

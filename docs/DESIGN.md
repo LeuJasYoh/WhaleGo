@@ -1,7 +1,7 @@
 # WhaleGo 架构设计（v0.5）
 
 > 状态：**v0.5 —— D21 用户拍板（GUI 六问）已落地**（见 §12 决策记录）。当前阶段先交付"分层/封装/契约"设计，
-> 对应 `ARCHITECTURE.md`（v0.5，工程分层与封装）、`PROTOCOL.md`（v1.2，MCP 工具面契约）与 `docs/GUI.md`（v0.3，GUI 宿主）；
+> 对应 `ARCHITECTURE.md`（v0.5，工程分层与封装）、`PROTOCOL.md`（v1.3，MCP 工具面契约）与 `docs/GUI.md`（v0.3，GUI 宿主）；
 > 评审通过后再进入实现。
 > 依据：本工作区前期研究 `research/zcode/`（ZCode CUA 实现研究，~2500 行主报告 + 6 篇分题笔记）、
 > `research/astrbot/`（AstrBot 插件约束与能力边界），以及本次在本机完成的可行性实测（附录 A）。
@@ -379,10 +379,10 @@ go_act(op, target, args)
 - **取消语义**：派发前可取消（→ not_sent）；进入原生调用后不可撤销，超时/异常 → possibly_sent（评审 M7）。
 
 **v1 动作面（收窄）**：`click(element|coordinate, left, count=1)`、`set_value(element, value)`、
-`type(element, text)`、`key(element, 单键)`、`scroll(element|coordinate, up|down, pages)` —— **所有 op 必须带 `target`**，
-`type`/`key` 只接受 element target（无 target 前台盲发路径已删除；需前台但无法安全激活 → `FOREGROUND_REQUIRED` 零发送）。
-`type.text` ≤1500；组合键/双击/右键/拖拽/粘贴 → `UNSUPPORTED_ACTION`（P2 再扩，评审 M10/D6）。
-**`go_launch`（写动作）**：只接受 allowlist 的 `app` 或 `app_id`（激活已有主窗），二选一，无 PATH/arguments；成功 = `isError=false` 且首行 `OK:`，
+`type(element, text)`、`key(element, 单键)`、`hotkey(element, keys)`、`scroll(element|coordinate, up|down, pages)` —— **所有 op 必须带 `target`**，
+`type`/`key`/`hotkey` 只接受 element target（无 target 前台盲发路径已删除；需前台但无法安全激活 → `FOREGROUND_REQUIRED` 零发送）。
+`type.text` ≤1500；`hotkey` 支持组合键（前台 SendInput，回执 unverified；含 win/alt+f4，无黑白名单）；双击/右键/拖拽/粘贴 → `UNSUPPORTED_ACTION`（P2 再扩，M10/D6）。
+**`go_launch`（写动作）**：`app`（程序名/桌面/开始菜单/完整路径，无白名单）或 `app_id`（激活已有主窗），二选一，无 arguments；成功 = `isError=false` 且首行 `OK:`，
 审计 fail-closed 返回前落盘；`LAUNCH_TIMEOUT` → `retry=never`（"进程可能已启动，禁止重试，请用 go_apps 确认"）（D4）。
 
 ### 5.6 会话、租约与停止
@@ -405,7 +405,7 @@ go_act(op, target, args)
 - **写动作审计在返回前落盘**（fail-closed：队列满/磁盘不可写 → `AUDIT_UNAVAILABLE` 且 not_sent）；
   观察审计可异步，丢弃计数进 `go_health.audit_dropped`（评审 M6）。
 - 结构化诊断日志（Serilog/内置 ILogger）分级别；`go_health` 顶层新增 `paused/pause_reason/paused_since_ms/stopped/session_stopped/accepting_actions` +
-  `capabilities.launch_allowlist`（`capabilities.observation` 仅在截图启用时含 `screenshot_printwindow`），原 `os.session_id` 改名
+  `capabilities.launch`（`capabilities.observation` 仅在截图启用时含 `screenshot_printwindow`），原 `os.session_id` 改名
   `os.windows_session_id`；`/healthz` 免认证最小面返回 `{ok,version,protocol_version,uptime_s,paused,stopped,accepting_actions}`
   （`listen.healthzRequireToken` 可要求 token，不含 token/会话 id，D1/D3）。
 
@@ -430,8 +430,7 @@ token 不进工具参数/返回值/日志/审计/托盘 tooltip（D13）。
   "audit": { "enabled": true, "dir": "%EXEDIR%\\logs", "requireDurableForActions": true },
   "hotkeys": { "enabled": true, "emergencyStop": "Ctrl+Alt+Shift+F12", "openSettings": null },
   "ui": { "notificationsLevel": "important", "theme": "system" },
-  "logging": { "level": "information", "dir": "%EXEDIR%\\logs" },
-  "launch": { "allowlist": [ { "name": "notepad", "path": "C:\\Windows\\System32\\notepad.exe" } ] }
+  "logging": { "level": "information", "dir": "%EXEDIR%\\logs" }
 }
 ```
 
@@ -593,7 +592,7 @@ class GoObserveTool(FunctionTool[AstrAgentContext]):
 
 ## 7. 协议契约 v1（工具面）
 
-> **完整契约以 `PROTOCOL.md` v1.2 为唯一事实源**（本节的摘要若与 PROTOCOL 冲突，以 PROTOCOL 为准）。
+> **完整契约以 `PROTOCOL.md` v1.3 为唯一事实源**（本节的摘要若与 PROTOCOL 冲突，以 PROTOCOL 为准）。
 > 传输：MCP Streamable HTTP `POST /mcp`；所有工具返回 `CallToolResult`；
 > **动作类成功 = `isError=false && dispatch_status="accepted"`；查询类与 `go_launch` 成功 = 首行 `OK:`**；失败/未发送/可能已发送一律 `isError=true` + 错误 JSON
 > （动作类内嵌 receipt）；文本首行 `OK:`/`ERROR[CODE]:`。请求不携带 `schema_version`，版本由 `go_health.protocol_version=1` 协商。
@@ -607,14 +606,14 @@ class GoObserveTool(FunctionTool[AstrAgentContext]):
 | `go_windows` | 列出窗口 | `app_id?` |
 | `go_observe` | 唯一观察入口 | `window_id?`、`app_id?`、`include_screenshot?`、`settle_ms?`、`max_elements?`、`max_value_chars?` |
 | `go_act` | 唯一动作通道 | `op`、**`target`（必填）**、`args?` |
-| `go_launch` | 启动/激活应用（**写动作**；唯一启动方式 = allowlist `app`） | `app?`、`app_id?`（二选一；无 PATH/arguments） |
+| `go_launch` | 启动/激活应用（**写动作**；`app` 支持程序名/快捷方式/完整路径，无白名单） | `app?`、`app_id?`（二选一；无 arguments） |
 | `go_stop` | kill switch（**只停本会话**；恢复仅本机） | `reason?`；`scope` 仅内部/管理员 |
 
 ### 7.2 go_act 的 op（v1 收窄）
 
 `click`（element/coordinate；left 单击）、`set_value`（element）、`type`（element, text）、`key`（element, 单键）、
-`scroll`（element/coordinate；up/down）；**所有 op 必须有 `target`**，`type`/`key` 只接受 element target（D6）。
-组合键/双击/右键/拖拽/粘贴/P2 动作 → `UNSUPPORTED_ACTION`；模型**不传** `frame_id`/`strategy`，坐标动作使用会话最近一次带截图观察的内部 frame。
+`hotkey`（element, 组合键，如 ctrl+s/alt+f4）、`scroll`（element/coordinate；up/down）；**所有 op 必须有 `target`**，`type`/`key`/`hotkey` 只接受 element target（D6）。
+双击/右键/拖拽/粘贴/P2 动作 → `UNSUPPORTED_ACTION`；模型**不传** `frame_id`/`strategy`，坐标动作使用会话最近一次带截图观察的内部 frame。
 
 ### 7.3 观察返回（详见 PROTOCOL §3.6/§4）
 
@@ -659,13 +658,13 @@ OK: 观察完成 window=w-00000000006AF2 state_id=st-8f21cd04 elements=123 scree
 |---|---|---|
 | 容器/镜像内 token 泄漏 | 任何人可控桌面 | token 只存配置；最小权限账号运行；审计；可轮换；只读开关；`go_stop` |
 | 网络暴露到 LAN/公网 | 被扫描利用 | 默认监听可配（建议 0.0.0.0 + 防火墙限定 docker/WSL 网段）；文档写清不要公网裸奔 |
-| 提示注入驱动危险动作 | 误删/误发/误购 | 只读模式/确认策略/速率限制/动作白名单/kill switch |
+| 提示注入驱动危险动作 | 误删/误发/误购 | 只读模式/速率限制/kill switch（无动作黑白名单，产品决定） |
 | 截图/输入数据进第三方模型 | 隐私泄露 | day-1：只截目标窗口客户区、IsPassword 脱敏、敏感窗口默认不附图、自身窗口排除、截图默认开启可一键关闭、`defaultInclude=false` 不自动附图、预算压缩、日志不记明文（Q4） |
 | 重放/重复动作 | 重复发送消息等 | possibly_sent 不自动重放；receipt 语义；幂等 op 才允许重试 |
 | 模型/群员滥用（工具默认 member） | 桌面被他人驱动 | 插件 `admin_only` + `event.is_admin()` + WebUI 工具权限设 admin |
 | 截图被模型转发到聊天 | 隐私外泄 | 插件固定隐私提示 + 敏感窗口默认不附图 + 截图默认开启可一键关闭（D9/Q4） |
 | 自身/GUI 窗口被当作操作目标 | 误操作设置窗口/自检 | 执行器永不枚举/观察/截图 `WhaleGo.*` 窗口（D9） |
-| 模型启动任意可执行文件 | 任意代码执行 | `launch.allowlist` 服务端白名单，只接受 `app`/`app_id`（D4） |
+| 模型启动任意可执行文件 | 任意代码执行 | **无白名单（产品决定）**：`go_launch` 可按程序名/快捷方式/完整路径启动；保留只读/暂停/停止/审计 |
 | 模型/容器解除止血 | 安全防线失效 | 暂停/停止恢复仅本机 GUI/托盘（二次确认），`resume` 不是远程命令（D2/D18） |
 | 审计丢失 | 事故不可复盘 | 动作审计 fail-closed（返回前落盘）；观察审计丢计数告警 |
 
@@ -755,9 +754,9 @@ WhaleGo/
 
 | 阶段 | 内容 | 验收 |
 |---|---|---|
-| **P0** | 协议骨架 + 认证 + health/apps/windows/observe/launch/stop（UIA 树 + PrintWindow 截图 + state 绑定 + kill switch） | 插件能连、列窗口、观察树与截图、launch 记事本（allowlist）；token 负例 401；go_stop 只停本会话 |
+| **P0** | 协议骨架 + 认证 + health/apps/windows/observe/launch/stop（UIA 树 + PrintWindow 截图 + state 绑定 + kill switch） | 插件能连、列窗口、观察树与截图、launch 记事本；token 负例 401；go_stop 只停本会话 |
 | **P1** | go_act 收窄子集（click-left/set_value/type/key 单键/scroll）+ 坐标 hit-test 链 + 回执三态 + 控制器租约 + 审计 fail-closed + WPF 设置窗口 v1（浅/深主题）/全局热键 | 夹具上 UIA/PostMessage/SendInput 三路径 + 计数 oracle；**另加 WPF + Edge + 高完整性窗口 + 用户中途切走**用例；STALE_STATE/CONTROLLER_BUSY/UNSUPPORTED_ACTION 负例 |
-| **P2** | drag/paste、组合键/双击/右键、WGC 截图、UWP/WPF/Chromium 特例、确认流程、崩溃重启 | 宿主矩阵小集合通过 |
+| **P2** | drag/paste、双击/右键、WGC 截图、UWP/WPF/Chromium 特例、确认流程、崩溃重启 | 宿主矩阵小集合通过 |
 | **P3** | TLS/mTLS、L2 token、审计 UI、脱敏增强、多执行器 | 安全评审 |
 
 ### 10.4 实现阶段交付物（评审通过后）
@@ -822,7 +821,7 @@ WhaleGo/
 | 6 | 宿主形态（D15/D21 Q6） | **单进程托盘宿主 + WPF 设置窗口** | WinForms `NotifyIcon` 托盘 + WPF 设置窗口（同进程 UseWPF+UseWindowsForms）；`WhaleGo.Gui` 只引用 Contracts；`--headless` 无头 seam（§5.10） |
 | 7 | 止血（D2） | **只读/暂停/停止三态；恢复仅本机** | 新增 `PAUSED`；全局停止持久化 `control-state.json` |
 | 8 | 模型面权限（D1） | **会话由插件注入，模型不可见 session_id** | 内部参数标 `"internal": true` |
-| 9 | token 与启动（D13/D4） | **明文 secrets.json + config 存哈希；launch allowlist 唯一启动方式** | 不接受 PATH/arguments（P2 再扩） |
+| 9 | token 与启动（D13/D4） | **明文 secrets.json + config 存哈希；go_launch 无白名单（v1.3 产品决定）** | 程序名/快捷方式/完整路径；无 arguments |
 | 10 | GUI 设置首屏（D21 Q1） | **A 概览**：状态 + 两个止血按钮 + 配对入口 | 用户 2026-10-31 晚拍板 |
 | 11 | 关闭设置窗口（D21 Q2） | **A 隐藏到托盘** | 维持单进程/托盘常驻 |
 | 12 | 止血档位（D21 Q3） | **A 两档**：暂停一键恢复 / 紧急停止二次确认 | 与 D2 三态止血一致 |
@@ -841,7 +840,7 @@ WhaleGo/
   安全三件套（M4/M5/M6）；取消/租约/版本链（M7/M8/M9）；AstrBot isError/modality 兜底（M13）；m1-m9 清理。
 - 第二轮审计：`docs/reviews/design-review-02.md`（0 blocker / 9 major / 10 minor）+ 场景走查 `workflow-trace-01.md`（5 场景）+ GUI 讨论稿
   `docs/GUI.md`；裁决 D1–D20 见 `design-review-02-response.md`。本轮：会话身份/三态止血/失败面/GUI 宿主/verification/观察可用性/验收夹具；
-  版本 DESIGN v0.5 / ARCHITECTURE v0.5 / PROTOCOL v1.2 / GUI v0.3 / README v0.5（contract_version=1.2；D21 用户拍板见 §12.1）。
+  版本 DESIGN v0.5 / ARCHITECTURE v0.5 / PROTOCOL v1.3 / GUI v0.3 / README v0.5（contract_version=1.3；D21 用户拍板见 §12.1）。
 
 ### 12.3 遗留问题（不阻塞设计评审，用户可后续拍板）
 
@@ -849,7 +848,7 @@ WhaleGo/
 2. **只读默认值**：默认 `readonly=false`；暂停/停止恢复仅本机（D2）；如需默认只读改配置即可。
 3. **目标应用优先级**：用于排宿主矩阵验收顺序（浏览器/Office/微信/游戏？）。
 4. **确认交互**（P2）：AstrBot 按钮 `Comp.Button` vs `session_waiter` 文本确认，取决于目标平台能力。
-5. **组合键/拖拽**：v1 明确 `UNSUPPORTED_ACTION`，P2 按 ZCode 真机矩阵逐项放开。
+5. **组合键/拖拽**：v1.3 已放开 `go_act op=hotkey`（含 win/alt+f4，无黑白名单）；拖拽仍为 P2。
 6. **Chromium/GPU 坐标**：v1 走元素路径，坐标按设计降级；WGC 单窗采集 P2 再验证（D8/D20）。
 7. **SSE / 宿主 mcp 2.x 证据**：SSE 未验证（P3+）；`.spike` venv 已删，实现阶段复验并补 `docs/evidence/`（D20）。
 

@@ -32,7 +32,7 @@ public sealed class ConfigPageTests
         Assert.False(Field<BoolField>(page, ConfigKeys.PolicyReadonly).Value);
         Assert.True(Field<BoolField>(page, ConfigKeys.ScreenshotEnabled).Value);
         Assert.False(Field<BoolField>(page, ConfigKeys.ScreenshotDefaultInclude).Value);
-        Assert.Equal(4, page.Groups.Count);
+        Assert.Equal(3, page.Groups.Count);
         Assert.False(page.IsDirty);
 
         var readonlyField = Field<BoolField>(page, ConfigKeys.PolicyReadonly);

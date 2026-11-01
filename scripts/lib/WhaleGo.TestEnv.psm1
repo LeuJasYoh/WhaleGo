@@ -170,7 +170,7 @@ function Write-WhaleGoUtf8File {
 function New-WhaleGoTestDataDir {
     <#
       Creates an isolated executor data dir:
-        <Root>/config.json        full local config (port, token hash, audit/log dirs, allowlist)
+        <Root>/config.json        full local config (port, token hash, audit/log dirs)
         <Root>/data/secrets.json  plaintext token (test format documented by T4)
         <Root>/logs               audit/log directory
       Returns an object with Root, ConfigPath, DataDir, LogDir, Token, Port.
@@ -181,8 +181,7 @@ function New-WhaleGoTestDataDir {
         [Parameter(Mandatory = $true)][int]$Port,
         [Parameter(Mandatory = $true)][string]$Token,
         [Parameter(Mandatory = $true)][string]$Sha256,
-        [switch]$Readonly,
-        [string]$FixtureExe = ''
+        [switch]$Readonly
     )
 
     $dataDir = Join-Path $Root 'data'
@@ -191,13 +190,6 @@ function New-WhaleGoTestDataDir {
     New-Item -ItemType Directory -Force -Path $logDir | Out-Null
     $configPath = Join-Path $Root 'config.json'
     $createdAt = (Get-Date).ToString('o')
-
-    $allowlist = @(
-        [ordered]@{ name = 'notepad'; path = 'C:\Windows\System32\notepad.exe' }
-    )
-    if (-not [string]::IsNullOrWhiteSpace($FixtureExe)) {
-        $allowlist += [ordered]@{ name = 'fixture'; path = $FixtureExe }
-    }
 
     $config = [ordered]@{
         listen     = [ordered]@{ address = '127.0.0.1'; port = $Port; healthzRequireToken = $false }
@@ -222,7 +214,6 @@ function New-WhaleGoTestDataDir {
         hotkeys    = [ordered]@{ enabled = $false; emergencyStop = $null; openSettings = $null }
         ui         = [ordered]@{ notificationsLevel = 'important'; theme = 'system' }
         logging    = [ordered]@{ level = 'information'; dir = $logDir }
-        launch     = [ordered]@{ allowlist = $allowlist }
     }
 
     $configJson = $config | ConvertTo-Json -Depth 12

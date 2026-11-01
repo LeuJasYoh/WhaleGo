@@ -5,7 +5,7 @@ namespace WhaleGo.Gui.Validation;
 
 /// <summary>
 /// Defensive reader for the loosely typed ConfigPatch.Values dictionary. The kernel (T4) may hand us plain CLR
-/// values, JsonElement values or allowlist dictionaries; the GUI accepts all of them so the two sides stay
+/// values or JsonElement values; the GUI accepts all of them so the two sides stay
 /// decoupled (Contracts is frozen and ConfigPatch is deliberately object?-typed).
 /// </summary>
 public static class ConfigValue
@@ -98,81 +98,5 @@ public static class ConfigValue
             default:
                 return [];
         }
-    }
-
-    public static IReadOnlyList<LaunchAllowlistEntry> AsAllowlist(object? value)
-    {
-        var result = new List<LaunchAllowlistEntry>();
-        switch (value)
-        {
-            case null:
-                return result;
-            case JsonElement { ValueKind: JsonValueKind.Array } element:
-                foreach (var item in element.EnumerateArray())
-                {
-                    if (item.ValueKind == JsonValueKind.Object)
-                    {
-                        result.Add(new LaunchAllowlistEntry(
-                            ReadProperty(item, "name") ?? string.Empty,
-                            ReadProperty(item, "path") ?? string.Empty));
-                    }
-                    else if (item.ValueKind == JsonValueKind.String)
-                    {
-                        result.Add(new LaunchAllowlistEntry(item.GetString() ?? string.Empty, string.Empty));
-                    }
-                }
-
-                return result;
-            case IEnumerable<LaunchAllowlistEntry> entries:
-                return entries.ToList();
-            case System.Collections.IEnumerable enumerable:
-                foreach (var item in enumerable)
-                {
-                    switch (item)
-                    {
-                        case LaunchAllowlistEntry entry:
-                            result.Add(entry);
-                            break;
-                        case JsonElement json when json.ValueKind == JsonValueKind.Object:
-                            result.Add(new LaunchAllowlistEntry(
-                                ReadProperty(json, "name") ?? string.Empty,
-                                ReadProperty(json, "path") ?? string.Empty));
-                            break;
-                        case IDictionary<string, object?> dictionary:
-                            result.Add(new LaunchAllowlistEntry(
-                                ReadDictionary(dictionary, "name") ?? string.Empty,
-                                ReadDictionary(dictionary, "path") ?? string.Empty));
-                            break;
-                    }
-                }
-
-                return result;
-            default:
-                return result;
-        }
-    }
-
-    private static string? ReadProperty(JsonElement element, string name)
-    {
-        if (element.TryGetProperty(name, out var lower) && lower.ValueKind == JsonValueKind.String)
-        {
-            return lower.GetString();
-        }
-
-        var capitalized = char.ToUpperInvariant(name[0]) + name[1..];
-        return element.TryGetProperty(capitalized, out var upper) && upper.ValueKind == JsonValueKind.String
-            ? upper.GetString()
-            : null;
-    }
-
-    private static string? ReadDictionary(IDictionary<string, object?> dictionary, string name)
-    {
-        if (dictionary.TryGetValue(name, out var value))
-        {
-            return AsString(value);
-        }
-
-        var capitalized = char.ToUpperInvariant(name[0]) + name[1..];
-        return dictionary.TryGetValue(capitalized, out var upper) ? AsString(upper) : null;
     }
 }

@@ -32,8 +32,6 @@ public static class ConfigKeys
     public const string UiTheme = "ui.theme";
     public const string LoggingLevel = "logging.level";
     public const string LoggingDir = "logging.dir";
-    public const string LaunchAllowlist = "launch.allowlist";
-    public const string LaunchEnforceAllowlist = "launch.enforceAllowlist";
 }
 
 /// <summary>Config value sources shown as badges in the settings window.</summary>
@@ -74,7 +72,6 @@ public static class ConfigDefaults
     public const bool HotkeysEnabled = true;
     public const string HotkeysEmergencyStop = "Ctrl+Alt+Shift+F12";
     public const bool UiNotificationsLevelImportant = true;
-    public const bool LaunchEnforceAllowlist = true;
     public const string UiTheme = "system";
     public const string LoggingLevel = "information";
 
@@ -108,9 +105,5 @@ public static class ConfigDefaults
         [ConfigKeys.UiNotificationsLevel] = "important",
         [ConfigKeys.UiTheme] = UiTheme,
         [ConfigKeys.LoggingLevel] = LoggingLevel,
-        [ConfigKeys.LaunchEnforceAllowlist] = LaunchEnforceAllowlist,
     };
 }
-
-/// <summary>Launch allowlist entry: the ONLY way the model can start a program (no paths/arguments).</summary>
-public sealed record LaunchAllowlistEntry(string Name, string Path);

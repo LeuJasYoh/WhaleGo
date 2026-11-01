@@ -20,23 +20,25 @@ public sealed class LaunchTests
         _output = output;
     }
 
+    private static LaunchTarget Executable(string path, string name = "app") =>
+        new(name, path, LaunchTargetKind.Executable);
+
     [Fact]
-    public async Task AllowlistLaunch_StartsFixtureAndFindsMainWindow()
+    public async Task Launch_Executable_StartsFixtureAndFindsMainWindow()
     {
         if (!FixtureReady())
         {
             return;
         }
 
-        var launcher = new AppLauncher(
-            new[] { new LaunchAllowlistEntry("t3fixture", TestSupport.FixtureExe) },
-            new EnumWindowCatalog(),
-            new WindowActivator());
+        var launcher = new AppLauncher(new EnumWindowCatalog(), new WindowActivator());
 
         int? launchedPid = null;
         try
         {
-            var result = await launcher.LaunchAsync(new LaunchRequest("t3fixture", AppId: null, WaitMs: 20000), CancellationToken.None);
+            var result = await launcher.LaunchAsync(
+                new LaunchRequest(Executable(TestSupport.FixtureExe, "t3fixture"), AppId: null, WaitMs: 20000),
+                CancellationToken.None);
             _output.WriteLine("launch result: " + JsonSerializer.Serialize(result));
             launchedPid = result.Pid;
 
@@ -72,22 +74,11 @@ public sealed class LaunchTests
     }
 
     [Fact]
-    public async Task AllowlistLaunch_UnknownName_IsFailure()
+    public async Task Launch_RelativePath_IsRejected()
     {
-        var launcher = new AppLauncher(Array.Empty<LaunchAllowlistEntry>(), new EnumWindowCatalog(), new WindowActivator());
-        var result = await launcher.LaunchAsync(new LaunchRequest("definitely-not-allowed", AppId: null, WaitMs: 1000), CancellationToken.None);
-        _output.WriteLine("launch result: " + JsonSerializer.Serialize(result));
-        Assert.True(AppLauncher.IndicatesLaunchFailure(result));
-    }
-
-    [Fact]
-    public async Task AllowlistLaunch_RelativePath_IsRejected()
-    {
-        var launcher = new AppLauncher(
-            new[] { new LaunchAllowlistEntry("evil", "notepad.exe") },
-            new EnumWindowCatalog(),
-            new WindowActivator());
-        var result = await launcher.LaunchAsync(new LaunchRequest("evil", AppId: null, WaitMs: 1000), CancellationToken.None);
+        var launcher = new AppLauncher(new EnumWindowCatalog(), new WindowActivator());
+        var result = await launcher.LaunchAsync(
+            new LaunchRequest(Executable("notepad.exe", "evil"), AppId: null, WaitMs: 1000), CancellationToken.None);
         Assert.True(AppLauncher.IndicatesLaunchFailure(result));
     }
 
@@ -108,15 +99,90 @@ public sealed class LaunchTests
         var fixtureWindow = _fixture.CreateWindowInfo();
         var appId = AppIdentity.ForExePath(TestSupport.FixtureExe);
         var window = fixtureWindow with { AppId = appId };
-        var launcher = new AppLauncher(Array.Empty<LaunchAllowlistEntry>(), new SingleWindowCatalog(window), new WindowActivator());
+        var launcher = new AppLauncher(new SingleWindowCatalog(window), new WindowActivator());
 
-        var result = await launcher.LaunchAsync(new LaunchRequest(AppName: null, AppId: appId, WaitMs: 2000), CancellationToken.None);
+        var result = await launcher.LaunchAsync(new LaunchRequest(Target: null, AppId: appId, WaitMs: 2000), CancellationToken.None);
         _output.WriteLine("activate result: " + JsonSerializer.Serialize(result));
 
         Assert.False(result.Launched);
         Assert.True(result.Activated, "existing window must be activated");
         Assert.NotNull(result.Window);
         Assert.Equal(appId, result.AppId);
+        Assert.True(result.Settled);
+    }
+
+    [Fact]
+    public void InstalledAppCatalog_Resolve_AbsoluteExecutablePath()
+    {
+        if (!FixtureReady())
+        {
+            return;
+        }
+
+        var catalog = new InstalledAppCatalog();
+        var resolved = catalog.Resolve(TestSupport.FixtureExe);
+        Assert.True(resolved.Ok);
+        Assert.Equal(LaunchTargetKind.Executable, resolved.App!.Kind);
+        Assert.Equal(Path.GetFullPath(TestSupport.FixtureExe), Path.GetFullPath(resolved.App.LaunchPath));
+    }
+
+    [Fact]
+    public void InstalledAppCatalog_Resolve_SystemAlias()
+    {
+        var catalog = new InstalledAppCatalog();
+        var resolved = catalog.Resolve("notepad");
+        Assert.True(resolved.Ok);
+        Assert.Equal(LaunchTargetKind.Alias, resolved.App!.Kind);
+        Assert.Equal("notepad.exe", resolved.App.LaunchPath);
+    }
+
+    [Fact]
+    public void InstalledAppCatalog_Resolve_UnknownName_IsMissing()
+    {
+        var catalog = new InstalledAppCatalog();
+        var resolved = catalog.Resolve("whalego-no-such-app-" + Guid.NewGuid().ToString("N"));
+        Assert.False(resolved.Ok);
+        Assert.Empty(resolved.Candidates);
+    }
+
+    [Fact]
+    public async Task Launch_SingleInstanceHandoff_ResolvesNewWindowByAppId()
+    {
+        // Regression for live single-instance apps (Edge/WeChat): the started stub may exit and the visible
+        // window belongs to another pid. A NEW window whose app_id matches the executable is a success.
+        var exe = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "whoami.exe");
+        if (!File.Exists(exe))
+        {
+            _output.WriteLine("SKIP: whoami.exe unavailable");
+            return;
+        }
+
+        var expectedAppId = AppIdentity.ForExePath(exe);
+        var window = new WindowInfo(
+            "w-0000000000FAKE",
+            expectedAppId,
+            "fake handoff window",
+            "Fake",
+            424_242,
+            IsOnscreen: true,
+            IsMinimized: false,
+            IsForeground: false,
+            IsEnabled: true,
+            new RectI(0, 0, 100, 100),
+            "dwm",
+            96,
+            0,
+            "top-level");
+
+        var launcher = new AppLauncher(new NewWindowCatalog(window), new WindowActivator());
+        var result = await launcher.LaunchAsync(
+            new LaunchRequest(Executable(exe, "whoami"), AppId: null, WaitMs: 3000), CancellationToken.None);
+        _output.WriteLine("handoff result: " + JsonSerializer.Serialize(result));
+
+        Assert.True(result.Launched, "a new window of the executable identity must count as launched");
+        Assert.NotNull(result.Window);
+        Assert.Equal(window.WindowId, result.Window!.WindowId);
+        Assert.Equal(424_242, result.Pid);
         Assert.True(result.Settled);
     }
 
@@ -151,83 +217,6 @@ public sealed class LaunchTests
         {
             // already gone
         }
-    }
-
-    [Fact]
-    public async Task AllowlistLaunch_AbsolutePath_OnlyWhenRequestOptsIn()
-    {
-        if (!FixtureReady())
-        {
-            return;
-        }
-
-        var exe = TestSupport.FixtureExe;
-        var launcher = new AppLauncher(Array.Empty<LaunchAllowlistEntry>(), new EnumWindowCatalog(), new WindowActivator());
-
-        // Default (enforce allowlist): an unlisted absolute path is a failure.
-        var blocked = await launcher.LaunchAsync(
-            new LaunchRequest(exe, AppId: null, WaitMs: 800, AllowAbsolutePath: false), CancellationToken.None);
-        Assert.True(AppLauncher.IndicatesLaunchFailure(blocked), "absolute path must be rejected when allowlist enforcement is on");
-
-        // Opt-in (launch.enforceAllowlist=false): the same absolute path starts the fixture.
-        int? launchedPid = null;
-        try
-        {
-            var allowed = await launcher.LaunchAsync(
-                new LaunchRequest(exe, AppId: null, WaitMs: 20000, AllowAbsolutePath: true), CancellationToken.None);
-            _output.WriteLine("absolute-path result: " + JsonSerializer.Serialize(allowed));
-            launchedPid = allowed.Pid;
-            Assert.True(allowed.Launched, "absolute path must launch when the request opts in");
-            Assert.NotNull(allowed.Window);
-        }
-        finally
-        {
-            KillProcess(launchedPid);
-        }
-    }
-
-    [Fact]
-    public async Task AllowlistLaunch_SingleInstanceHandoff_ResolvesNewWindowByAppId()
-    {
-        // Regression for live single-instance apps (Edge/WeChat): the started stub may exit and the visible
-        // window belongs to another pid. A NEW window whose app_id matches the allowlisted exe is a success.
-        var exe = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "whoami.exe");
-        if (!File.Exists(exe))
-        {
-            _output.WriteLine("SKIP: whoami.exe unavailable");
-            return;
-        }
-
-        var expectedAppId = AppIdentity.ForExePath(exe);
-        var window = new WindowInfo(
-            "w-0000000000FAKE",
-            expectedAppId,
-            "fake handoff window",
-            "Fake",
-            424_242,
-            IsOnscreen: true,
-            IsMinimized: false,
-            IsForeground: false,
-            IsEnabled: true,
-            new RectI(0, 0, 100, 100),
-            "dwm",
-            96,
-            0,
-            "top-level");
-
-        var launcher = new AppLauncher(
-            new[] { new LaunchAllowlistEntry("whoami", exe) },
-            new NewWindowCatalog(window),
-            new WindowActivator());
-
-        var result = await launcher.LaunchAsync(new LaunchRequest("whoami", AppId: null, WaitMs: 3000), CancellationToken.None);
-        _output.WriteLine("handoff result: " + JsonSerializer.Serialize(result));
-
-        Assert.True(result.Launched, "a new window of the allowlisted app identity must count as launched");
-        Assert.NotNull(result.Window);
-        Assert.Equal(window.WindowId, result.Window!.WindowId);
-        Assert.Equal(424_242, result.Pid);
-        Assert.True(result.Settled);
     }
 
     /// <summary>First ListWindows call models the pre-start snapshot (empty); afterwards a new window appears.</summary>

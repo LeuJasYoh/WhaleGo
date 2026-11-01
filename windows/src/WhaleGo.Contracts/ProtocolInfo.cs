@@ -6,7 +6,7 @@ public static class ProtocolInfo
     public const string ProductName = "WhaleGo";
     public const string ExecutorVersion = "0.1.0";
     public const int ProtocolVersion = 1;
-    public const string ContractVersion = "1.2";
+    public const string ContractVersion = "1.3";
     public const string ContractFile = "contracts/whalego.tools.v1.json";
     public const string HealthSchemaVersion = "whalego-health-v1";
     public const string AppsSchemaVersion = "whalego-apps-v1";

@@ -2,9 +2,9 @@
 
 > 状态：**v0.3 —— 用户拍板定稿**。GUI 六问的结果见 `docs/reviews/design-review-02-response.md` §6 D21（本文 §13 同步）。
 > 本文是 GUI 实现规格：**WPF 设置窗口（浅/深两套主题）+ WinForms `NotifyIcon` 托盘，同进程**；D21 引起的跨文档改动清单见 §11.2（本文只改自身）。
-> 基线：设计/架构 **v0.5**、协议 v1.2、contracts 1.2（2026-10-31）；执行器 = C#/.NET 10 WinExe，必须跑在用户交互会话。
+> 基线：设计/架构 **v0.5**、协议 v1.3、contracts 1.3（2026-11-01）；执行器 = C#/.NET 10 WinExe，必须跑在用户交互会话。
 > 命名：一律 WhaleGo / `go_*` / `WhaleGo.*`；历史评审里的 PCCtrl / pc_* 是旧名，本稿不沿用。
-> 标记约定：**已裁决** = 用户/Lead 已拍板；**已落地** = 主文档（DESIGN/ARCHITECTURE/NAMING/README v0.5、PROTOCOL v1.2）已同步；**新增** = 现有文档没有的键/端口。
+> 标记约定：**已裁决** = 用户/Lead 已拍板；**已落地** = 主文档（DESIGN/ARCHITECTURE/NAMING/README v0.5、PROTOCOL v1.3）已同步；**新增** = 现有文档没有的键/端口。
 
 **一句话方案**：在 `WhaleGo.Executor` 单进程内，用 **WPF** 做「WhaleGo 设置」窗口（浅/深主题、圆角卡片、清爽排版、150ms 过渡），
 用 **WinForms `NotifyIcon`** 做系统托盘（同进程 `UseWPF`+`UseWindowsForms`，零第三方 NuGet）；托盘常驻、双击打开设置，
@@ -221,7 +221,7 @@ WhaleGo.Gui  ──只引用──→  WhaleGo.Contracts（IExecutorControl / IW
 
 1. **概览**：状态卡片、两个止血按钮、配对向导入口、复制插件配置；**右上角主题切换（跟随系统/浅色/深色）**，首屏即见（Q1 拍板）。
 2. **连接与配对**：`listen.*`、token 列表（掩码/复制/轮换）、连接测试、防火墙提示、0.0.0.0 风险横幅。
-3. **执行策略**：`policy.*`、`limits.*`、`screenshot.*`（默认开 + “不自动附图”说明）、只读开关、`launch.allowlist`。
+3. **执行策略**：`policy.*`、`limits.*`、`screenshot.*`（默认开 + “不自动附图”说明）、只读开关。
 4. **隐私与审计**：`privacy.*`、`audit.*`（含 fail-closed 危险项，默认锁定）。
 5. **诊断与日志**：状态详情、租约、最近请求、工具计数、审计 tail、一键自检、打开目录。
 6. **关于/限制**：版本、协议版本、主题说明、**“启动方式：手动启动”**、限制（UIPI/高完整性、锁屏、DPI、Chromium 坐标降级）、免责声明。
@@ -262,7 +262,6 @@ WhaleGo.Gui  ──只引用──→  WhaleGo.Contracts（IExecutorControl / IW
 | 外观 | `ui.theme` | enum | `system` | **新增（D21）**：`system` / `light` / `dark`；跟随系统或强制；**热切换**（§10.7） | 热 | DESIGN §5.8 v0.5（已落地） |
 | 日志 | `logging.level` | enum | `information` | trace/debug/information/warning/error | 热 | DESIGN §5.8 |
 | 日志 | `logging.dir` | string | `%EXEDIR%\logs`（可执行程序同目录） | 可写目录 | 需重启 | DESIGN §5.7、§5.8 |
-| 启动 | `launch.allowlist` | list[{name,path}] | notepad/calc/mspaint/explorer | 模型只能按 name 启动；path 必须绝对路径且存在；GUI 增删/校验 | 热 | PROTOCOL §3.8、DESIGN §5.8 |
 
 ### 6.3 D21 带来的配置增删（已裁决，**已落地 DESIGN §5.8 v0.5**）
 
@@ -392,7 +391,7 @@ WhaleGo.Gui  ──只引用──→  WhaleGo.Contracts（IExecutorControl / IW
 - 注册走 Contracts `IHotkeyRegistrar`（Platform 用 `RegisterHotKey` 实现，GUI 不 P/Invoke）；注册失败（被占用/非法）：设置页红字 + 托盘气泡 + 诊断页一条，**不静默、不自动换键**。
 - 只在当前交互会话有效：锁屏 / UAC 安全桌面下收不到（写进「关于/限制」）。`hotkeys.openSettings` 保持 `null`（未拍板，不启用；§13 保留项）。
 
-### 9.3 `go_health` 状态字段（已落地 PROTOCOL v1.2 §3.2）
+### 9.3 `go_health` 状态字段（已落地 PROTOCOL v1.3 §3.2）
 
 模型必须**能看见**止血状态，不能只靠 `go_act` 报错。PROTOCOL 已落地 6 个顶层可选字段（GUI 只读展示，不新增协议）：
 
@@ -567,7 +566,7 @@ GUI 状态卡片直接映射：`只读 / 暂停 / 停止（全局/本会话）/ 
 
 ## 11. 与现有文档的修订清单（已全部落地）
 
-### 11.1 已裁决并落地的部分（核对基准 v0.5 / v1.2 / contracts 1.2；2026-10-31 已全部同步）
+### 11.1 已裁决并落地的部分（核对基准 v0.5 / v1.3 / contracts 1.3；2026-11-01 已同步）
 
 | 决策 | 落点 | 状态 |
 |---|---|---|
@@ -748,8 +747,8 @@ GUI 状态卡片直接映射：`只读 / 暂停 / 停止（全局/本会话）/ 
   回调可能来自 Platform 线程，GUI 内部转后台 `Stop("hotkey")`，不阻塞回调；注册失败会托盘气泡 + 设置页/诊断页红字，不静默。
 - **标题栏**：`IWindowTheme.TryApplyDarkTitleBar(hwnd, dark)` 在窗口创建与每次主题变化时调用；返回 `false` 时按 Win10 回退处理（关于页注明）。
 - **配置值形状（写入 `ConfigPatch.Values`，键一律 camelCase `ConfigKeys.*`）**：`bool` / `int`（或 `long`）/ `string` /
-  `privacy.sensitiveWindows` 用 `string[]` / `launch.allowlist` 用 `List<LaunchAllowlistEntry>`；
-  读取侧兼容 `JsonElement`、`long`、`string`、allowlist 字典等形状（`Validation/ConfigValue.cs`），T4 侧无需为 GUI 改类型。
+  `privacy.sensitiveWindows` 用 `string[]`；
+  读取侧兼容 `JsonElement`、`long`、`string` 等形状（`Validation/ConfigValue.cs`），T4 侧无需为 GUI 改类型。
 - **`GetConfigSources()`** 期望返回 `ConfigSourceKinds.*` 字符串；GUI 把 `environment`/`commandLine` 视为只读并显示覆盖变量名。
 - **首启判定**：`ConfigPath` 不存在或 `GetTokens()` 无可用 token → 启动后显示设置窗口并弹出 5 步向导（可跳过）。
 - **状态轮询**：可见时每 2s 一次 `GetStatus`（1s 超时），托盘状态随 `StatusSnapshot` 更新；`RefreshStatus()` 可立即触发。

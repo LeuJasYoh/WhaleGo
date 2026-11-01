@@ -51,13 +51,6 @@
                             <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding PolicyLine}" Style="{DynamicResource Text.Body}"
                                        FontSize="12" Margin="0,3" TextWrapping="Wrap" />
                         </Grid>
-                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                            <TextBlock Text="{Binding AllowlistSummary}" Style="{DynamicResource Text.Caption}"
-                                       VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="520" />
-                            <Button Content="设置启动白名单" Style="{DynamicResource Button.Ghost}" Margin="10,0,0,0"
-                                    Command="{Binding EditPolicyCommand}"
-                                    AutomationProperties.Name="打开执行策略页设置启动白名单" />
-                        </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
                             <Button Content="{Binding PauseResumeLabel}" Style="{DynamicResource Button.Primary}"
                                     Command="{Binding TogglePauseCommand}" IsEnabled="{Binding CanPause}"

@@ -85,7 +85,6 @@ internal static class TestData
         [ConfigKeys.UiNotificationsLevel] = "important",
         [ConfigKeys.UiTheme] = "system",
         [ConfigKeys.LoggingLevel] = "information",
-        [ConfigKeys.LaunchAllowlist] = Array.Empty<LaunchAllowlistEntry>(),
     });
 }
 

@@ -73,7 +73,7 @@ public sealed class AsyncRelayCommand : ICommand
 
     public void RaiseCanExecuteChanged() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
 }
-/// <summary>Minimal generic command (used by list editors such as the allowlist / glob rows).</summary>
+/// <summary>Minimal generic command (used by list editors such as glob rows).</summary>
 public sealed class RelayCommand<T> : ICommand
 {
     private readonly Action<T> _execute;

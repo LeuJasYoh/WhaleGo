@@ -178,7 +178,7 @@ class WhaleGoClient:
             return error_outcome(
                 errors.make_error(
                     "INVALID_ARGUMENT",
-                    "go_launch 必须提供 app（allowlist 内名称）或 app_id 之一。",
+                    "go_launch 必须提供 app（程序名/快捷方式/完整路径）或 app_id 之一。",
                     details={"reason": "missing_app"},
                 )
             )

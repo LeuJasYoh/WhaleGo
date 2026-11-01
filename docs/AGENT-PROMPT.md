@@ -17,7 +17,7 @@
 6) 需要时看 docs/reviews/design-review-02-response.md（D1-D22 裁决记录）与 docs/NAMING.md
 只读参考：research/、ref/AstrBot/、ZCode-main/（不要改）。
 
-硬规则：改契约先改 PROTOCOL 再同步 contracts JSON 与两端实现；模型面 schema 不得出现 session_id/request_id/scope；possibly_sent 禁止重试、动作后 state 失效、恢复止血仅本机、截图默认开启但 defaultInclude=false、自身窗口绝不观察/截图；UI 用 WPF+WinForms 托盘、不做 WebUI；不做开机自启；版本 DESIGN/ARCH/README v0.5、PROTOCOL v1.2、contract_version 1.2、GUI v0.3。
+硬规则：改契约先改 PROTOCOL 再同步 contracts JSON 与两端实现；模型面 schema 不得出现 session_id/request_id/scope；possibly_sent 禁止重试、动作后 state 失效、恢复止血仅本机、截图默认开启但 defaultInclude=false、自身窗口绝不观察/截图；UI 用 WPF+WinForms 托盘、不做 WebUI；不做开机自启；版本 DESIGN/ARCH/README v0.5、PROTOCOL v1.3、contract_version 1.3、GUI v0.3。
 
 实现按 ARCHITECTURE §7 的 T1-T7 找任务与 write scope；先读文件再改，不要修改 research/ 与 ref/。
 ```
@@ -33,7 +33,7 @@
 - docs/DESIGN.md：为什么——研究结论、方案对比、选型、总体架构、安全、部署、路线图、决策记录 D1-D22。
 - docs/ARCHITECTURE.md：怎么做——分层/封装边界/Contracts 接口/状态机/并发/测试 seam/任务分解 T1-T7/风险。
 - docs/PROTOCOL.md：工具面契约唯一事实源——7 个工具、回执三态、错误码、新鲜度、坐标与命中测试、超时链、隐私、模型使用规则。
-- contracts/whalego.tools.v1.json：机器可读契约（与 PROTOCOL 同步，contract_version=1.2）。
+- contracts/whalego.tools.v1.json：机器可读契约（与 PROTOCOL 同步，contract_version=1.3）。
 - docs/GUI.md：Windows 托盘 + WPF 设置窗口规格 v0.3（配对/止血/配置/诊断/浅深主题）。
 - docs/NAMING.md：命名规范（WhaleGo、go_*、wg- 会话前缀、目录/标识）。
 - docs/reviews/design-review-02-response.md：最终裁决记录 D1-D22（任何设计争议先看这里）。
@@ -55,7 +55,7 @@
 - 截图默认开启但 defaultInclude=false（默认不自动附图，模型按需 include_screenshot=true）；敏感窗口不截图；自身进程窗口（WhaleGo.*）永不枚举/观察/截图。
 - GUI：WPF 设置窗口 + WinForms NotifyIcon 托盘，同进程 UseWPF+UseWindowsForms，零第三方 UI 库；不嵌 WebView、不做 WebUI；浅/深主题跟随系统+手动热切换。
 - 不做开机自启（手动启动）。
-- 版本约定：DESIGN/ARCHITECTURE/README v0.5、PROTOCOL v1.2、contract_version 1.2、GUI v0.3；改文档同步页眉版本与 README 状态行。
+- 版本约定：DESIGN/ARCHITECTURE/README v0.5、PROTOCOL v1.3、contract_version 1.3、GUI v0.3；改文档同步页眉版本与 README 状态行。
 - 只读目录：research/、ref/、ZCode-main/；不要修改。
 - 代码规范：C# net10.0(-windows)、Nullable=enable、TreatWarningsAsErrors；Python ruff + 类型注解 + async-only。
 

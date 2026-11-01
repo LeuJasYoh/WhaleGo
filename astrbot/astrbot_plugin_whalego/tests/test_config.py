@@ -26,7 +26,7 @@ def test_contract_bundle_matches_repo_contract_and_version(repo_root: Path):
     assert repo_contract_path.is_file(), "仓库 contracts/whalego.tools.v1.json 缺失"
     repo_contract = json.loads(repo_contract_path.read_text(encoding="utf-8-sig"))
     assert bundled == repo_contract, "插件包内契约副本与仓库 contracts 不同步（需重新 cp）"
-    assert bundled["contract_version"] == config.CONTRACT_VERSION == "1.2"
+    assert bundled["contract_version"] == config.CONTRACT_VERSION == "1.3"
     assert bundled["protocol_version"] == config.PROTOCOL_VERSION == 1
     names = [tool["name"] for tool in bundled["tools"]]
     assert names == list(config.TOOL_NAMES)
@@ -191,7 +191,7 @@ RULE_TOKENS = {
     "rule4_prefixes": ("OK:", "ERROR["),
     "rule5_possibly_sent": ("possibly_sent", "禁止重试"),
     "rule6_controller_busy": ("CONTROLLER_BUSY", "retry_after_ms"),
-    "rule7_v1_limits": ("组合键", "右键", "双击", "拖拽", "粘贴"),
+    "rule7_hotkey_limits": ("hotkey", "快捷键", "右键", "双击", "拖拽", "粘贴"),
     "rule8_screenshot_privacy": ("截图", "隐私", "include_screenshot", "转发"),
     "rule9_paused_stopped": ("PAUSED", "SESSION_STOPPED", "托盘"),
     "rule10_read_long": ("max_value_chars", "max_elements"),

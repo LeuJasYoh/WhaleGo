@@ -55,11 +55,11 @@ public sealed class ToolContractTests
     }
 
     [Fact]
-    public void ContractFile_IsV12AndDeclaresSevenTools()
+    public void ContractFile_IsV13AndDeclaresSevenTools()
     {
         var document = ContractCatalog.Load(TestEnvironment.ContractPath);
         Assert.Equal("whalego.tools", document.Contract);
-        Assert.Equal("1.2", document.ContractVersion);
+        Assert.Equal("1.3", document.ContractVersion);
         Assert.Equal(1, document.ProtocolVersion);
         Assert.Equal(7, document.ToolNames().Count);
         Assert.Empty(document.FindForbiddenModelParams());

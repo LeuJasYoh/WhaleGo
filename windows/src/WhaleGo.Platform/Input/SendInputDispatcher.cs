@@ -52,6 +52,29 @@ public sealed class SendInputDispatcher
         Send(MakeKey(stroke, keyUp: false), MakeKey(stroke, keyUp: true));
     }
 
+    /// <summary>
+    /// Sends one key chord in a single SendInput call: modifiers down (Ctrl/Alt/Shift/Win),
+    /// base key down/up, modifiers up in reverse order. A single call keeps the chord as atomic
+    /// as Windows allows; a short/failed call throws and the caller treats it as possibly_sent.
+    /// </summary>
+    public void SendChord(HotkeyChord chord)
+    {
+        var events = new List<NativeInput.Input>((chord.Modifiers.Count * 2) + 2);
+        foreach (var modifier in chord.Modifiers)
+        {
+            events.Add(MakeKey(modifier, keyUp: false));
+        }
+
+        events.Add(MakeKey(chord.Key, keyUp: false));
+        events.Add(MakeKey(chord.Key, keyUp: true));
+        for (var i = chord.Modifiers.Count - 1; i >= 0; i--)
+        {
+            events.Add(MakeKey(chord.Modifiers[i], keyUp: true));
+        }
+
+        Send(events.ToArray());
+    }
+
     public void KeyDown(KeyStroke stroke) => Send(MakeKey(stroke, keyUp: false));
 
     public void KeyUp(KeyStroke stroke) => Send(MakeKey(stroke, keyUp: true));

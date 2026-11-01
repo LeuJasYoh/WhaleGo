@@ -1,6 +1,6 @@
 # WhaleGo 协议契约 v1（MCP 工具面）
 
-> 状态：**v1.2（审计 02 + 场景走查修订版，实现基线）**。实现基线：执行器 = C#/.NET 10 + MCP C# SDK 2.3.0；
+> 状态：**v1.3（放开启动白名单 + 组合键 hotkey；实现基线）**。实现基线：执行器 = C#/.NET 10 + MCP C# SDK 2.3.0；
 > 插件 = AstrBot 4.29.3（容器自带 mcp 1.30.x）。协议标识：`protocol_version = 1`（整数；本次修订在冻结前完成，不升主版本）。
 > 修订依据：`docs/reviews/design-review-01*.md`、`docs/reviews/design-review-02.md`、`docs/reviews/workflow-trace-01.md`；
 > 逐条裁决见 `docs/reviews/design-review-02-response.md`（D1–D20）。
@@ -120,7 +120,7 @@
 | `go_windows` | 列出窗口 |
 | `go_observe` | 唯一观察入口：UIA 树 + 可选截图，生成 `state_id`（+内部 frame） |
 | `go_act` | 唯一动作通道：单次派发 → 回执（成功）或错误（失败，内嵌回执） |
-| `go_launch` | 启动 allowlist 内应用 / 激活已有应用（P0；写动作，审计 fail-closed） |
+| `go_launch` | 启动任意应用（程序名/桌面/开始菜单/完整路径）或激活已有应用（写动作，审计 fail-closed） |
 | `go_stop` | 停止：模型调用只停**本会话**；全局停止由本机热键/托盘/管理员命令触发（恢复仅本机） |
 
 ### 3.2 `go_health`
@@ -140,9 +140,7 @@
     "observation": ["uia_tree"],
     "actions": ["click","set_value","type","key","scroll"],
     "targets": ["element","coordinate"],
-    "launch": ["allowlist","activate"],
-    "launch_allowlist": ["notepad","calc","mspaint","explorer"],
-    "launch_mode": "allowlist"
+    "launch": ["app","path","activate"]
   },
   "paused": false,
   "pause_reason": null,
@@ -310,14 +308,14 @@
 > 坐标动作只认 `frame` 的图片像素（`0,0` = 图片左上角）；**frame_id 只存在于服务端内部**（日志/诊断），
 > 不下发模型，模型也不回传。
 
-### 3.7 `go_act`（v1：单动作通道 + oneOf）
+### 3.7 `go_act`（v1：单动作通道 + oneOf；v1.3 增加 hotkey）
 
 ```json
 {
   "type": "object",
   "required": ["op"],
   "properties": {
-    "op": { "type": "string", "enum": ["click","set_value","type","key","scroll"] },
+    "op": { "type": "string", "enum": ["click","set_value","type","key","hotkey","scroll"] },
     "target": {
       "oneOf": [
         { "type": "object", "required": ["kind","index","state_id"],
@@ -352,6 +350,10 @@
         "args":{"type":"object","required":["keys"],
         "properties":{"keys":{"type":"string","enum":["enter","tab","escape","backspace","delete","up","down","left","right","pageup","pagedown","home","end","space"]}},
         "additionalProperties": false}}} },
+    { "if": {"properties":{"op":{"const":"hotkey"}}}, "then": {"required":["target","args"],
+      "properties":{"target":{"type":"object","required":["kind"],"properties":{"kind":{"const":"element"}}},
+        "args":{"type":"object","required":["keys"],
+        "properties":{"keys":{"type":"string"}}, "additionalProperties": false}}} },
     { "if": {"properties":{"op":{"const":"scroll"}}}, "then": {"required":["target"],
       "properties":{"args":{"type":"object","required":["direction"],
         "properties":{"direction":{"type":"string","enum":["up","down"]},
@@ -364,9 +366,15 @@
 > `session_id`/`request_id` 是插件注入的内部参数（contracts 标 `internal`），模型面 schema 不出现；
 > executor 仍接受并用于会话绑定/日志关联。
 
-**v1 能力边界（重要）**：`click` 仅 `left + 单击`；`key` 仅单键（组合键/修饰键返回 `UNSUPPORTED_ACTION`）；
+**v1 能力边界（重要）**：`click` 仅 `left + 单击`；`key` 仅单键；`hotkey` 支持组合键（见下）；
 `scroll` 仅上下、页码 0.25..20；`type` 不含组合键；无 `drag/paste/perform_action/select_text/双击/右键`（P2）。
-**所有 op 必须带 `target`**；`type`/`key` 只接受 `kind=element`（v1 不向“当前焦点窗口”盲发按键；无 target → `INVALID_ARGUMENT`）。
+**所有 op 必须带 `target`**；`type`/`key`/`hotkey` 只接受 `kind=element`（v1 不向“当前焦点窗口”盲发按键；无 target → `INVALID_ARGUMENT`）。
+
+**hotkey 组合键（v1.3）**：`args.keys` 是 `"ctrl+s"` 形式的字符串（大小写不敏感、修饰键顺序归一），
+支持 `ctrl/alt/shift/win` + 单个字母/数字/F1–F24/常用命名键（enter/tab/escape/space/backspace/delete/insert/
+home/end/pageup/pagedown/up/down/left/right/printscreen/pause）；也允许无修饰键（如 `"f5"`）。
+组合键通过**前台 SendInput** 发送（需目标窗口前台，失败 → `FOREGROUND_REQUIRED`），回执固定
+`verification=unverified/reason=hotkey_no_readback`；`Ctrl+Alt+Del` 无法注入，按未生效处理。**不设黑白名单**。
 坐标目标：使用会话**最近一次带截图观察**绑定的 frame（无截图 observe 不清除同窗口既有 frame）；过期/不可动作
 → `STALE_STATE`/`FRAME_NOT_ACTIONABLE`；坐标是**图片像素**（换算见 §6）。
 元素目标：使用会话**当前 state**；动作后 state 立即失效。element 路径需要目标前台而无法安全激活 → `FOREGROUND_REQUIRED`（零发送）。
@@ -429,7 +437,7 @@
 **verification 契约（v1）**：`verification.status ∈ {verified, mismatched, unverified}`：
 - `set_value`（元素）：ValuePattern 读回 == 请求值 → `verified`，否则 `mismatched`；
 - `type`（元素）：ValuePattern/TextPattern 读回包含请求文本 → `verified`，否则 `mismatched`；
-- `click`/`key`/`scroll`：无读回 → `unverified`。
+- `click`/`key`/`hotkey`/`scroll`：无读回 → `unverified`。
 
 `mismatched` 只说明“写后读不一致”，**不改变 `dispatch_status=accepted`**；调用方只能重新观察，**不得自动重放**。
 
@@ -439,7 +447,7 @@
 {
   "type": "object",
   "properties": {
-    "app":    { "type": "string", "description": "启动 allowlist 内应用（go_health.capabilities.launch_allowlist 可查）" },
+    "app":    { "type": "string", "description": "要启动的应用：程序名（notepad/calc）、桌面/开始菜单快捷方式名或完整路径；重名返回候选" },
     "app_id": { "type": "string", "description": "激活已有应用的主窗口" },
     "wait_ms":{ "type": "integer", "minimum": 0, "maximum": 10000, "default": 5000,
                 "description": "等待主窗口出现并稳定的上限" }
@@ -448,14 +456,12 @@
 }
 ```
 
-- **安全边界**：模型只能按 allowlist 名称启动（配置 `launch.allowlist`，默认 notepad/calc/mspaint/explorer；
-  GUI 可编辑）；**不接受 PATH 名/相对路径/arguments**（P2 再扩模型面）。
-- **本地策略开关（additive，默认行为不变）**：执行器配置 `launch.enforceAllowlist`（默认 `true`；只在本机 GUI
-  「执行策略 → 启动白名单」可改）。关闭后，`app` 不是白名单名称时执行器接受**存在的绝对 `.exe` 路径**
-  （仍不接受 PATH 名/相对路径/任意参数，仍是审计 fail-closed 的写动作）；`go_health.capabilities.launch` 会含
-  `"unrestricted"`，`capabilities.launch_mode` 为 `"allowlist"` 或 `"unrestricted"`。这是高风险本地设置
-  （削弱提示注入防护），模型面 schema 不变、模型无法自行开启，GUI 保存时给出显式警告。
-- **写动作**：审计 fail-closed（返回前落盘）；需要激活已有窗口时获取 controller lease。
+- **启动解析（v1.3 无白名单）**：`app` 依次按 (a) 完整 `.exe`/`.lnk` 路径，(b) 系统执行别名（notepad/calc/
+  mspaint/explorer/cmd/… 以及中文别名 记事本/计算器/画图 等），(c) 桌面/开始菜单快捷方式名，(d) App Paths
+  注册表 匹配；以上都不中 → `APP_NOT_FOUND`，同名多匹配 → `AMBIGUOUS_APP`（details 给候选 name/path）。
+  **不接受命令行参数、相对路径、URL**。
+- **写动作**：审计 fail-closed（返回前落盘）；需要激活已有窗口时获取 controller lease；启动 `.lnk`/别名走
+  ShellExecute，启动 `.exe` 直接 Process.Start；单实例应用（Edge/WeChat）按“新窗口或前台窗口变化”判定为已激活。
 
 返回：
 
@@ -470,7 +476,7 @@
 }
 ```
 
-错误：`APP_NOT_FOUND`、`AMBIGUOUS_APP`、`LAUNCH_FAILED`、`LAUNCH_TIMEOUT`。
+错误：`APP_NOT_FOUND`、`AMBIGUOUS_APP`、`LAUNCH_FAILED`、`LAUNCH_TIMEOUT`（均 `not_sent`/never；`LAUNCH_TIMEOUT` 的进程可能已启动，禁止重试）。
 **`LAUNCH_TIMEOUT` 一律 `retry=never`**：进程可能已启动，禁止重试，请用 `go_apps` 确认。**P0 交付**。
 
 ### 3.9 `go_stop`
@@ -595,7 +601,7 @@ OK: 观察完成 window=w-00000000006AF2 state_id=st-8f21cd04 elements=123 spars
 |---|---|---|---|
 | `INVALID_ARGUMENT` | schema/参数/坐标越界/枚举非法 | never | not_sent |
 | `UNSUPPORTED_PROTOCOL` | protocol_version 不匹配 | never | not_sent |
-| `UNSUPPORTED_ACTION` | v1 未实现的动作/组合（组合键、右键、双击、拖拽等） | never | not_sent |
+| `UNSUPPORTED_ACTION` | 当前未实现的动作（右键、双击、拖拽、粘贴等） | never | not_sent |
 | `SESSION_NOT_FOUND` / `SESSION_EXPIRED` | 会话不存在/过期 | never | not_sent |
 | `SESSION_STOPPED` | 本会话/全局停止生效（需本机恢复） | never | not_sent |
 | `PAUSED` | 用户在本机暂停（GUI/托盘；恢复仅本机） | never | not_sent |
@@ -639,7 +645,10 @@ OK: 观察完成 window=w-00000000006AF2 state_id=st-8f21cd04 elements=123 spars
 - 实例：v1.2 新增的 `go_health.paused/pause_reason/paused_since_ms/stopped/session_stopped/accepting_actions`、
   `go_observe.max_value_chars`、`advisories` 新值（`uia_unavailable`/`screenshot_disabled`/`screenshot_suppressed`）、
   `PAUSED`/`SESSION_LOCKED` 错误码、`frame` 新增像素映射字段，均属“新增可选字段/枚举值”，**不升主版本**。
-- 本文件 v1.2 对应 `contract_version = "1.2"`（`contracts/whalego.tools.v1.json`）。
+- 本文件 v1.3 对应 `contract_version = "1.3"`（`contracts/whalego.tools.v1.json`）。
+- v1.3 变更：新增 `go_act.op=hotkey`（组合键，含 win 与 alt+f4）；`go_launch` 移除 allowlist，改为程序名/
+  快捷方式/完整路径解析；删除 `capabilities.launch_allowlist` 与 `capabilities.launch_mode`（旧客户端仅展示这
+  两个字段，按兼容变更处理，`protocol_version` 仍为 1）。
 
 ---
 
@@ -685,7 +694,7 @@ OK: 观察完成 window=w-00000000006AF2 state_id=st-8f21cd04 elements=123 spars
 4. `OK:` = 动作已发送（不等于生效）；`ERROR[...]` = 失败，按 `retry` 提示处理。
 5. “动作可能已发送”（`possibly_sent`）时**禁止重试**，只能重新观察。
 6. `CONTROLLER_BUSY` 按 `retry_after_ms` 等待后重试；不要连续重复同一调用（AstrBot 会追加重复提示）。
-7. v1 不支持组合键（Ctrl+S 等）、右键、双击、拖拽、粘贴；保存类任务只能点击保存控件/菜单，没有可点控件就如实说“做不到”。
+7. 需要快捷键（保存/撤销/查找等）用 `go_act op=hotkey`：元素目标先 observe，keys 例如 ctrl+s、alt+f4；快捷键已完全放开；仍不支持右键/双击/拖拽/粘贴。
 8. 截图默认可用（含隐私提示）：未经用户明确要求不得转发；需要看图/坐标操作时传 `include_screenshot=true`；
    模型看不到图（provider 不支持 image）时不要做坐标动作。
 9. 用户暂停/停止后（`PAUSED`/`SESSION_STOPPED`）不要重试，提示用户到 Windows 托盘恢复。

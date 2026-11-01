@@ -1,7 +1,7 @@
 # WhaleGo —— 让容器里的模型操控你的 Windows 桌面
 
-> 状态：**P0+P1 实现完成（README v0.5 / 协议 v1.2 / contract_version=1.2 / GUI v0.3），本机验收通过**
-> （构建 + 385 个 .NET 测试 + 150 个插件测试 + 契约门禁 + 86 条 E2E + 容器→宿主链路；证据见
+> 状态：**P0+P1 实现完成，v1.3 移除启动白名单 + 新增组合键（README v0.5 / 协议 v1.3 / contract_version=1.3 / GUI v0.3），本机验收通过**
+> （构建 + 401 个 .NET 测试 + 150 个插件测试 + 契约门禁 + 89 条 E2E + 容器→宿主链路；证据见
 > [docs/evidence/implementation-e2e.md](docs/evidence/implementation-e2e.md)）。
 > 目标：AstrBot（Docker 容器）内的模型通过 MCP 调用 Windows 上的常驻执行器，完成"看屏幕（UIA 树/截图）→ 点鼠标 → 敲键盘"。
 > 启动方式：**手动启动**（不做开机自启）；设置窗口 + WinForms 托盘常驻，关闭窗口 = 隐藏到托盘。
@@ -66,7 +66,7 @@ Windows 执行器 WhaleGo.Executor（C#/.NET 10，单进程：WinForms 托盘 + 
 ```
 
 - 工具面：`go_health / go_apps / go_windows / go_observe / go_act / go_launch / go_stop`（7 个必需；`go_` 是 WhaleGo 品牌前缀，**不是 Go 语言**）；
-  模型看不到也传不了 `session_id`/`request_id`/`scope`（插件按 umo 注入的内部参数），`go_launch` 只走 allowlist。
+  模型看不到也传不了 `session_id`/`request_id`/`scope`（插件按 umo 注入的内部参数）；`go_launch` 无白名单（程序名/桌面/开始菜单/完整路径）；`go_act` 支持 `hotkey` 组合键（如 ctrl+s、alt+f4）。
 - 契约：观察（UIA 树 + 可选单窗截图 + state_id）与动作（单通道 go_act + receipt 三态）强分离；
   `possibly_sent` 禁止自动重放；动作后状态立即失效，必须重新观察。
 - 安全：0.0.0.0 监听 + Bearer Token（`wg_` 前缀，明文只在 secrets.json）、只读/暂停/停止三态止血、controller lease、审计 fail-closed；
@@ -74,23 +74,24 @@ Windows 执行器 WhaleGo.Executor（C#/.NET 10，单进程：WinForms 托盘 + 
   热键 Ctrl+Alt+Shift+F12 只触发紧急停止。
 - UI：WPF 设置窗口（6 页；浅/深主题跟随系统 + 手动热切换）；WinForms 托盘常驻；**不嵌 WebView、不做 WebUI/网页设置页**。
 
-## 本机验收结果（2026-10-31，详见证据文件）
+## 本机验收结果（2026-11-01 v1.3，详见证据文件）
 
 | 验收块 | 结果 |
 |---|---|
 | 解决方案构建（Debug/Release，含测试/夹具） | ✅ 0 warnings / 0 errors |
-| .NET 测试（Contracts 82 + Platform 113 + Executor 65 + Gui 125） | ✅ 385 passed / 0 failed / 0 skipped |
+| .NET 测试（Contracts 89 + Platform 129 + Executor 65 + Gui 118） | ✅ 401 passed / 0 failed / 0 skipped |
 | AstrBot 插件（pytest + ruff + 容器内真实 AstrBot/mcp 1.30 导入与链路冒烟） | ✅ 150 passed；ruff clean；容器→宿主 12/12 链路 PASS |
 | 契约门禁 `tools/list` vs `contracts/whalego.tools.v1.json` | ✅ PASS（7 工具、描述、x-internal-stripped schema、无内部参数） |
-| E2E（真实执行器 + 真实 mcp 1.30 客户端；夹具动作/截图/回执/STALE/只读/租约/停止） | ✅ 86 passed / 0 failed / 0 skipped |
+| E2E（真实执行器 + 真实 mcp 1.30 客户端；夹具动作/截图/回执/STALE/只读/租约/停止/组合键） | ✅ 89 passed / 0 failed / 0 skipped |
 | `--self-check --json` | ✅ exit 0，12 项（无头下 hotkey/theme 为 warn，符合预期） |
 
 ## v1 已知限制
 
-组合键/右键/双击/拖拽/粘贴；菜单弹层的可靠编排；保存对话框全自动（仅元素点击可及则尽力，否则明确失败）；
+右键/双击/拖拽/粘贴；菜单弹层的可靠编排；保存对话框全自动（仅元素点击可及则尽力，否则明确失败）；
 长文档全量读取（受 `max_value_chars` 与预算约束）；Chromium/GPU 未验证宿主坐标点击；多屏负坐标坐标点击；
 锁屏/安全桌面操作；文件系统读写；远程恢复止血；多语言/自动更新/安装器/代码签名；不做 WebUI/WebView；
-启动方式 = 手动启动（不自启）；多执行器/TLS。UWP 真实应用身份解析已实现但缺 UWP 夹具验证（P1 补齐）。
+启动方式 = 手动启动（不自启）；多执行器/TLS。`go_launch` 无白名单（产品决定）：只要名称/路径能解析即可启动；
+`go_act op=hotkey` 已放开全部组合键（含 win/alt+f4），不再有黑白名单。UWP 真实应用身份解析已实现但缺 UWP 夹具验证（P1 补齐）。
 
 ## 目录
 
@@ -106,8 +107,13 @@ ref/        AstrBot 4.29.3 参考源码（只读）
 
 ## 实现路线
 
-- **P0+P1（已完成，本机验收通过）**：观察闭环（health/apps/windows/observe/launch/stop + 认证 + launch allowlist + kill switch）+
-  动作闭环（click/set_value/type/key/scroll + 坐标 hit-test 链 + 回执/审计/租约 + WPF 设置窗口 v1（浅/深主题）/热键/配对）。
-- **P2+（未开始）**：宿主矩阵（Chromium/UWP/WPF）、WGC 截图、drag/paste/组合键/右键/双击、确认流程、崩溃重启、TLS/mTLS、多执行器。
+- **P0+P1（已完成，本机验收通过）**：观察闭环（health/apps/windows/observe/launch/stop + 认证 + 无白名单启动 + kill switch）+
+  动作闭环（click/set_value/type/key/hotkey/scroll + 坐标 hit-test 链 + 回执/审计/租约 + WPF 设置窗口 v1（浅/深主题）/热键/配对）。
+- **P2+（未开始）**：宿主矩阵（Chromium/UWP/WPF）、WGC 截图、drag/paste/右键/双击、确认流程、崩溃重启、TLS/mTLS、多执行器。
 - 契约唯一事实源 = [docs/PROTOCOL.md](docs/PROTOCOL.md) + [contracts/whalego.tools.v1.json](contracts/whalego.tools.v1.json)；
   改动顺序：PROTOCOL → contracts → 执行器 Tool 层 → 插件 schema → 跑 `scripts/check-contract.ps1`。
+
+## TODO
+
+- [ ] **重写前端**：重新设计并实现 WhaleGo 的设置/托盘界面（当前为 WPF 6 页设置窗口 + WinForms 托盘）。
+- [ ] **提供命令行功能（像 DSH 一样）**：为 WhaleGo 增加 CLI 入口，支持终端下的启动、状态/健康检查、配对/诊断、工具调用等脚本化用法，与 GUI/托盘并存。

@@ -42,9 +42,7 @@ public static class ConfigValues
             UiNotificationsLevel: GetString(values, ConfigKeys.UiNotificationsLevel) ?? "important",
             UiTheme: GetString(values, ConfigKeys.UiTheme) ?? ConfigDefaults.UiTheme,
             LoggingLevel: GetString(values, ConfigKeys.LoggingLevel) ?? ConfigDefaults.LoggingLevel,
-            LoggingDirRaw: GetString(values, ConfigKeys.LoggingDir) ?? ConfigDefaults.AuditDir,
-            LaunchEnforceAllowlist: GetBool(values, ConfigKeys.LaunchEnforceAllowlist, ConfigDefaults.LaunchEnforceAllowlist),
-            LaunchAllowlist: GetLaunchEntries(values));
+            LoggingDirRaw: GetString(values, ConfigKeys.LoggingDir) ?? ConfigDefaults.AuditDir);
     }
 
     public static object? GetRaw(IReadOnlyDictionary<string, object?> values, string key) =>
@@ -125,32 +123,5 @@ public static class ConfigValues
             tokens.Add(new TokenConfigEntry(name, sha256.ToLowerInvariant(), createdAt));
         }
         return tokens;
-    }
-
-    private static IReadOnlyList<LaunchEntryConfig> GetLaunchEntries(IReadOnlyDictionary<string, object?> values)
-    {
-        if (GetRaw(values, ConfigKeys.LaunchAllowlist) is not List<object?> list || list.Count == 0)
-        {
-            return ConfigDefaultsFactory.DefaultAllowlist().Select(entry => new LaunchEntryConfig(entry.Name, entry.Path)).ToList();
-        }
-
-        var entries = new List<LaunchEntryConfig>();
-        foreach (var item in list)
-        {
-            if (item is not Dictionary<string, object?> entry)
-            {
-                continue;
-            }
-
-            var name = entry.TryGetValue("name", out var nameValue) ? nameValue?.ToString() ?? string.Empty : string.Empty;
-            var path = entry.TryGetValue("path", out var pathValue) ? pathValue?.ToString() ?? string.Empty : string.Empty;
-            if (name.Length > 0 && path.Length > 0)
-            {
-                entries.Add(new LaunchEntryConfig(name.Trim(), path.Trim()));
-            }
-        }
-        return entries.Count > 0
-            ? entries
-            : ConfigDefaultsFactory.DefaultAllowlist().Select(entry => new LaunchEntryConfig(entry.Name, entry.Path)).ToList();
     }
 }

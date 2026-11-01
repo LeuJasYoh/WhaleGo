@@ -18,7 +18,7 @@ public static partial class ActionValidator
 {
     private static readonly HashSet<string> KnownOps = new(StringComparer.Ordinal)
     {
-        "click", "set_value", "type", "key", "scroll",
+        "click", "set_value", "type", "key", "hotkey", "scroll",
     };
 
     private static readonly HashSet<string> KeyNames = new(StringComparer.Ordinal)
@@ -33,6 +33,7 @@ public static partial class ActionValidator
     private static readonly string[] SetValueArgKeys = ["value"];
     private static readonly string[] TypeArgKeys = ["text"];
     private static readonly string[] KeyArgKeys = ["keys"];
+    private static readonly string[] HotkeyArgKeys = ["keys"];
     private static readonly string[] ScrollArgKeys = ["direction", "pages"];
 
     public const string StateIdPattern = "^st-[0-9a-f]{8}$";
@@ -126,6 +127,7 @@ public static partial class ActionValidator
             "set_value" => ValidateSetValue(argsObject, targetKind, elementIndex, stateId),
             "type" => ValidateType(argsObject, targetKind, elementIndex, stateId),
             "key" => ValidateKey(argsObject, targetKind, elementIndex, stateId),
+            "hotkey" => ValidateHotkey(argsObject, targetKind, elementIndex, stateId),
             "scroll" => ValidateScroll(argsObject, targetKind, elementIndex, stateId, x, y),
             _ => Fail(ErrorCodes.UnsupportedAction, $"v1 不支持动作 {op}。"),
         };
@@ -260,6 +262,38 @@ public static partial class ActionValidator
         }
 
         return ActionValidation.Success(new ActionPlan("key", kind, index, stateId, Key: keys));
+    }
+
+    private static ActionValidation ValidateHotkey(JsonElement? args, TargetKind kind, int? index, string? stateId)
+    {
+        if (kind != TargetKind.Element)
+        {
+            return Fail(ErrorCodes.InvalidArgument, "hotkey 只接受 element target（先 observe 拿到 state_id+index）。");
+        }
+
+        if (args is null)
+        {
+            return Fail(ErrorCodes.InvalidArgument, "hotkey 缺少 args.keys（例如 ctrl+s）。");
+        }
+
+        var invalidKey = FirstUnknownKey(args.Value, HotkeyArgKeys);
+        if (invalidKey is not null)
+        {
+            return Fail(ErrorCodes.InvalidArgument, $"args 包含不支持的字段：{invalidKey}。");
+        }
+
+        var keys = ReadString(args.Value, "keys");
+        if (keys is null)
+        {
+            return Fail(ErrorCodes.InvalidArgument, "hotkey 需要字符串 args.keys（例如 ctrl+shift+s）。");
+        }
+
+        if (!HotkeySpec.TryParse(keys, out var spec))
+        {
+            return Fail(ErrorCodes.InvalidArgument, "组合键格式非法：示例 ctrl+s、ctrl+shift+esc、f5。");
+        }
+
+        return ActionValidation.Success(new ActionPlan("hotkey", kind, index, stateId, Hotkey: spec.Canonical));
     }
 
     private static ActionValidation ValidateScroll(JsonElement? args, TargetKind kind, int? index, string? stateId, int? x, int? y)

@@ -11,7 +11,7 @@
     - descriptions equal;
     - inputSchema structurally equal after stripping x-internal properties (order-insensitive);
     - no session_id / request_id / scope in model-facing schemas;
-    - contract_version == 1.2 / protocol_version == 1 (static, from the contract file);
+    - contract_version == 1.3 / protocol_version == 1 (static, from the contract file);
     - optional -CheckHealth: go_health.protocol_version == 1 + accepting_actions present.
   Also sanity-checks that POST /mcp without a token is rejected with HTTP 401.
 

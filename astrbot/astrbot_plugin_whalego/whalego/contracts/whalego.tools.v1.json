@@ -1,6 +1,6 @@
 {
   "contract": "whalego.tools",
-  "contract_version": "1.2",
+  "contract_version": "1.3",
   "protocol_version": 1,
   "transport": "mcp-streamable-http",
   "notes": [
@@ -12,8 +12,9 @@
     "标 x-internal:true 的参数由插件按 umo 注入，模型面 schema 由插件过滤掉，模型不可见/不可传。",
     "控制三态：readonly（READONLY_MODE）/ paused（PAUSED，本机 GUI）/ stopped（SESSION_STOPPED，本机或模型仅停本会话）；恢复只允许本机。",
     "截图三开关 AND（执行器 enabled、模型 include_screenshot 或执行器 defaultInclude、插件 allow_screenshot）；自身进程窗口永不观察/截图。",
-    "go_launch 默认只接受 allowlist 名称；本地配置 launch.enforceAllowlist=false（默认 true，仅本机 GUI 可改）时也接受绝对 .exe 路径，go_health.capabilities.launch_mode 暴露 allowlist|unrestricted。",
-    "契约版本 1.2 对应 PROTOCOL.md v1.2；模型使用规则见 PROTOCOL §12。"
+    "go_launch 无白名单：app 可以是程序名（notepad/calc）、桌面/开始菜单快捷方式名或完整路径；同名多匹配返回 AMBIGUOUS_APP 候选，找不到返回 APP_NOT_FOUND；不传参数。",
+    "go_act 的 hotkey 组合键使用 element target（state_id+index），通过前台 SendInput 发送；回执始终 unverified，动作后必须重新 go_observe。",
+    "契约版本 1.3 对应 PROTOCOL.md v1.3；模型使用规则见 PROTOCOL §12。"
   ],
   "tools": [
     {
@@ -116,7 +117,7 @@
     },
     {
       "name": "go_act",
-      "description": "在观察到的窗口上执行单次动作（唯一动作通道）。所有 op 必须带 target；type/key 只接受 element。成功返回回执（accepted），动作后必须重新 go_observe；possibly_sent 禁止重试；mismatched 只可 reobserve。",
+      "description": "在观察到的窗口上执行单次动作（唯一动作通道）。所有 op 必须带 target；type/key/hotkey 只接受 element。hotkey 用于快捷键（如 ctrl+s、ctrl+shift+esc、alt+f4），完全放开不设黑白名单。成功返回回执（accepted），动作后必须重新 go_observe；possibly_sent 禁止重试；mismatched 只可 reobserve。",
       "inputSchema": {
         "type": "object",
         "required": [
@@ -130,6 +131,7 @@
               "set_value",
               "type",
               "key",
+              "hotkey",
               "scroll"
             ]
           },
@@ -184,7 +186,7 @@
           },
           "args": {
             "type": "object",
-            "description": "按 op 定义：click{button,count,modifiers} set_value{value} type{text} key{keys} scroll{direction,pages}"
+            "description": "按 op 定义：click{button,count,modifiers} set_value{value} type{text} key{keys} hotkey{keys} scroll{direction,pages}"
           }
         },
         "allOf": [
@@ -360,6 +362,58 @@
             "if": {
               "properties": {
                 "op": {
+                  "const": "hotkey"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "target",
+                "args"
+              ],
+              "properties": {
+                "target": {
+                  "type": "object",
+                  "required": [
+                    "kind",
+                    "index",
+                    "state_id"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "const": "element"
+                    },
+                    "index": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "state_id": {
+                      "type": "string",
+                      "pattern": "^st-[0-9a-f]{8}$"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "args": {
+                  "type": "object",
+                  "required": [
+                    "keys"
+                  ],
+                  "properties": {
+                    "keys": {
+                      "type": "string",
+                      "description": "组合键字符串，例如 ctrl+s、ctrl+shift+s、alt+f4、f5（修饰键 ctrl/alt/shift/win + 单个字母/数字/F1-F24/常用命名键）"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "op": {
                   "const": "scroll"
                 }
               }
@@ -401,13 +455,13 @@
     },
     {
       "name": "go_launch",
-      "description": "启动 allowlist 内应用（app）或激活已有应用主窗口（app_id），有界等待窗口出现。写动作：审计 fail-closed；不接受参数；LAUNCH_TIMEOUT 禁止重试。执行器关闭启动白名单时（go_health.capabilities.launch_mode=unrestricted），app 也可传存在的绝对 .exe 路径（本地 GUI 高风险开关，默认不开）。",
+      "description": "启动应用（app）或激活已有应用主窗口（app_id），有界等待窗口出现。无白名单：app 支持程序名（notepad/calc）、桌面/开始菜单快捷方式名或完整路径；重名返回候选、找不到报 APP_NOT_FOUND。写动作：审计 fail-closed；不接受参数；LAUNCH_TIMEOUT 禁止重试。",
       "inputSchema": {
         "type": "object",
         "properties": {
           "app": {
             "type": "string",
-            "description": "启动 allowlist 内应用（go_health.capabilities.launch_allowlist 可查）"
+            "description": "要启动的应用：程序名（notepad/calc）、桌面/开始菜单快捷方式名或完整路径；重名会返回候选"
           },
           "app_id": {
             "type": "string",

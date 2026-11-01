@@ -30,8 +30,7 @@ public sealed class ConfigService : IConfigStore
         ConfigKeys.AuditEnabled, ConfigKeys.AuditDir, ConfigKeys.AuditRequireDurableForActions,
         ConfigKeys.HotkeysEnabled, ConfigKeys.HotkeysEmergencyStop, ConfigKeys.HotkeysOpenSettings,
         ConfigKeys.UiNotificationsLevel, ConfigKeys.UiTheme,
-        ConfigKeys.LoggingLevel, ConfigKeys.LoggingDir, ConfigKeys.LaunchAllowlist,
-        ConfigKeys.LaunchEnforceAllowlist,
+        ConfigKeys.LoggingLevel, ConfigKeys.LoggingDir,
     ];
 
     private readonly object _lock = new();
@@ -226,7 +225,6 @@ public sealed class ConfigService : IConfigStore
 
             visible[key] = key switch
             {
-                ConfigKeys.LaunchAllowlist => NormalizeLaunchEntries(value),
                 ConfigKeys.PrivacySensitiveWindows => NormalizeStringList(value),
                 _ => NormalizeScalar(value),
             };
@@ -256,30 +254,6 @@ public sealed class ConfigService : IConfigStore
         string single => [single],
         _ => [],
     };
-
-    private static List<Dictionary<string, object?>> NormalizeLaunchEntries(object value)
-    {
-        var result = new List<Dictionary<string, object?>>();
-        switch (value)
-        {
-            case List<object?> list:
-                foreach (var item in list)
-                {
-                    if (item is Dictionary<string, object?> entry)
-                    {
-                        result.Add(entry);
-                    }
-                }
-                break;
-            case IReadOnlyList<LaunchAllowlistEntry> entries:
-                foreach (var entry in entries)
-                {
-                    result.Add(new Dictionary<string, object?> { ["name"] = entry.Name, ["path"] = entry.Path });
-                }
-                break;
-        }
-        return result;
-    }
 
     /// <summary>Expand a configured directory; the documented %LOCALAPPDATA% macro follows the effective data root.</summary>
     private string ResolveConfiguredDirectory(string? raw, string fallback)
@@ -381,17 +355,6 @@ public sealed class ConfigService : IConfigStore
                 return JsonValue.Create(number);
             case string text:
                 return JsonValue.Create(text);
-            case List<LaunchAllowlistEntry> entries:
-            {
-                var array = new JsonArray();
-                foreach (var entry in entries)
-                {
-                    array.Add(new JsonObject { ["name"] = entry.Name, ["path"] = entry.Path });
-                }
-                return array;
-            }
-            case IReadOnlyList<LaunchAllowlistEntry> entries:
-                return ToNode(entries.ToList());
             case List<TokenConfigEntry> tokens:
             {
                 var array = new JsonArray();

@@ -55,4 +55,33 @@ public sealed class KeyChordParserTests
     {
         Assert.False(KeyChordParser.TryParse(keyName, out _));
     }
+
+    [Theory]
+    [InlineData("ctrl+s", 0x53, new ushort[] { 0xA2 })]
+    [InlineData("Ctrl+Shift+S", 0x53, new ushort[] { 0xA2, 0xA0 })]
+    [InlineData("shift+ctrl+s", 0x53, new ushort[] { 0xA2, 0xA0 })]
+    [InlineData("alt+f4", 0x73, new ushort[] { 0xA4 })]
+    [InlineData("win+r", 0x52, new ushort[] { 0x5B })]
+    [InlineData("f5", 0x74, new ushort[0])]
+    [InlineData("ctrl+alt+delete", 0x2E, new ushort[] { 0xA2, 0xA4 })]
+    public void TryParseHotkey_ReturnsKeyAndCanonicalModifiers(string chord, int expectedVk, ushort[] expectedModifiers)
+    {
+        Assert.True(KeyChordParser.TryParseHotkey(chord, out var parsed));
+        Assert.Equal((ushort)expectedVk, parsed.Key.VirtualKey);
+        Assert.Equal(expectedModifiers, parsed.Modifiers.Select(modifier => modifier.VirtualKey).ToArray());
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("ctrl+")]
+    [InlineData("+s")]
+    [InlineData("ctrl++s")]
+    [InlineData("ctrl+ctrl+s")]
+    [InlineData("ctrl+unknown")]
+    [InlineData("a+b")]
+    [InlineData(null)]
+    public void TryParseHotkey_RejectsMalformedChords(string? chord)
+    {
+        Assert.False(KeyChordParser.TryParseHotkey(chord, out _));
+    }
 }

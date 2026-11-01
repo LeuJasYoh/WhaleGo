@@ -144,4 +144,41 @@ public sealed class ActionValidatorTests
         var result = Validate("click", """{"kind":"coordinate","x":1,"y":2,"frame_id":"fr-x"}""", """{"button":"left","count":1}""");
         Assert.Equal(ErrorCodes.InvalidArgument, result.Error!.Code);
     }
+
+    [Fact]
+    public void ValidHotkeyIsCanonicalized()
+    {
+        var result = Validate("hotkey", ElementTarget, """{"keys":"Shift+Ctrl+S"}""");
+        Assert.True(result.Ok);
+        Assert.Equal("hotkey", result.Plan!.Op);
+        Assert.Equal("ctrl+shift+s", result.Plan.Hotkey);
+    }
+
+    [Fact]
+    public void HotkeyRequiresElementTarget()
+    {
+        var result = Validate("hotkey", CoordinateTarget, """{"keys":"ctrl+s"}""");
+        Assert.False(result.Ok);
+        Assert.Equal(ErrorCodes.InvalidArgument, result.Error!.Code);
+    }
+
+    [Theory]
+    [InlineData("""{"keys":"ctrl+"}""")]
+    [InlineData("""{"keys":"ctrl+ctrl+s"}""")]
+    [InlineData("""{"keys":"ctrl+unknown"}""")]
+    [InlineData("""{}""")]
+    public void MalformedHotkeyIsInvalidArgument(string argsJson)
+    {
+        var result = Validate("hotkey", ElementTarget, argsJson);
+        Assert.False(result.Ok);
+        Assert.Equal(ErrorCodes.InvalidArgument, result.Error!.Code);
+    }
+
+    [Fact]
+    public void HotkeyAllowsSingleKey()
+    {
+        var result = Validate("hotkey", ElementTarget, """{"keys":"f5"}""");
+        Assert.True(result.Ok);
+        Assert.Equal("f5", result.Plan!.Hotkey);
+    }
 }

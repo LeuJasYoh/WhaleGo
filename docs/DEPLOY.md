@@ -1,7 +1,7 @@
 # WhaleGo 部署与运维指南（v0.1，新增实现文档）
 
 > 定位：**怎么在本机把 WhaleGo 跑起来并接到 AstrBot 容器**（部署/配对/防火墙/排障/运维）。
-> 上位文档：`DESIGN.md`（v0.5，决策）、`ARCHITECTURE.md`（v0.5，分层）、`PROTOCOL.md`（v1.2，工具面）、`GUI.md`（v0.3，GUI）。
+> 上位文档：`DESIGN.md`（v0.5，决策）、`ARCHITECTURE.md`（v0.5，分层）、`PROTOCOL.md`（v1.3，工具面）、`GUI.md`（v0.3，GUI）。
 > 本文是**新增文档**（不改变既有文档版本号）；与 PROTOCOL/DESIGN 冲突时以上位文档为准。
 > 本机环境（实测基线）：Windows 11 + .NET SDK 10.0.401 + Docker Desktop + AstrBot 4.29.3 容器（mcp 1.30.x）。
 > 标注约定：**[已验证]** = 本机实际执行过；**[按设计]** = 依设计/契约实现后应如此，尚未在本机跑通的分支会点明。
@@ -208,8 +208,7 @@ AstrBot WebUI →「插件管理」→ 上传 astrbot_plugin_whalego 的 zip（�
   "audit": { "enabled": true, "dir": "%EXEDIR%\\logs", "requireDurableForActions": true },
   "hotkeys": { "enabled": true, "emergencyStop": "Ctrl+Alt+Shift+F12", "openSettings": null },
   "ui": { "notificationsLevel": "important", "theme": "system" },
-  "logging": { "level": "information", "dir": "%EXEDIR%\\logs" },
-  "launch": { "allowlist": [ { "name": "notepad", "path": "C:\\Windows\\System32\\notepad.exe" } ] }
+  "logging": { "level": "information", "dir": "%EXEDIR%\\logs" }
 }
 ```
 
@@ -218,12 +217,10 @@ AstrBot WebUI →「插件管理」→ 上传 astrbot_plugin_whalego 的 zip（�
   若放在 `Program Files` 等只读目录请在 GUI「隐私与审计」把 `audit.dir`/`logging.dir` 改成可写绝对路径。
   用 `--config`/`WHALEGO_DATA_DIR` 隔离运行（测试/E2E）时日志在隔离 data root 的 `logs/`。
 - token 明文**不进** config.json（只存 sha256）；明文在 `%LOCALAPPDATA%\WhaleGo\secrets.json`（仅当前用户 ACL）。
-- `launch.allowlist` 是模型 go_launch 的**唯一启动方式**（只接受 name；默认 notepad/calc/mspaint/explorer）。
-  Edge/微信等常用程序可按 name+绝对路径格式追加（本机已加 `edge`、`weixin`）。
-  编辑入口：Windows 端「WhaleGo 设置 → 执行策略 → 启动白名单」（可增删/校验路径）；概览页也会显示当前状态并提供跳转。
-  **注意：当前实现启动时加载 allowlist，修改后需重启 WhaleGo.Executor 才生效**（GUI 规格里的“热生效”待后续版本）。
-- 若完全不想维护白名单：同一页可关闭「启用启动白名单」开关（配置 `launch.enforceAllowlist=false`，默认开启）。
-  关闭后模型可直接用**绝对 `.exe` 路径**启动程序（仍不接受参数/PATH 名）；这是高风险本地开关，只在确实信任模型输入时临时开启，GUI 会显示警告。
+- `go_launch` **无白名单**（v1.3 产品决定）：`app` 支持程序名（notepad/calc）、桌面/开始菜单快捷方式名或完整路径；不需要配置列表。
+  Edge/微信等常用程序直接按程序名/快捷方式名/完整路径即可打开。
+  启动解析顺序：完整路径 → 系统执行别名（含中文别名）→ 桌面/开始菜单快捷方式 → App Paths；重名返回候选，找不到报 `APP_NOT_FOUND`。
+- 已删除 `launch.allowlist` / `launch.enforceAllowlist` 配置与 GUI 编辑器（旧配置中的这两个键会被忽略）。
 - `screenshot.enabled=true` + `screenshot.defaultInclude=false` = **截图可用但不自动附图**（Q4 拍板）。
 - 热键默认 Ctrl+Alt+Shift+F12 **只触发紧急停止**，不恢复、不弹确认。
 - 不做开机自启（无 startup.* 配置组）。
@@ -367,7 +364,7 @@ WhaleGo.Executor.exe --headless --no-hotkey --config "$env:TEMP\whalego-headless
 
 ## 13. 契约一致性（部署/升级前必跑）
 
-工具面唯一事实源 = `docs/PROTOCOL.md` v1.2 + `contracts/whalego.tools.v1.json`（`contract_version="1.2"`）。执行器与插件都必须与契约对齐。
+工具面唯一事实源 = `docs/PROTOCOL.md` v1.3 + `contracts/whalego.tools.v1.json`（`contract_version="1.3"`）。执行器与插件都必须与契约对齐。
 
 ```powershell
 # 起执行器（临时数据目录/端口）→ 用真实 mcp 1.30 客户端拉 tools/list → 与契约 diff
@@ -383,7 +380,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-contract.ps1 -
 
 ## 14. v1 已知限制（如实）
 
-- 动作：仅左键单击、单键（无组合键）、上下滚动；无右键/双击/拖拽/粘贴/菜单弹层可靠编排；保存对话框仅在可点控件路径下尽力，否则明确失败。
+- 动作：仅左键单击、单键、组合键（`go_act op=hotkey`，无黑白名单）、上下滚动；无右键/双击/拖拽/粘贴/菜单弹层可靠编排；保存对话框仅在可点控件路径下尽力，否则明确失败。
 - 观察：长文受 max_value_chars（≤4000）与总预算约束；菜单/弹层不是独立窗口，v1 单窗观察。
 - 宿主：Chromium/GPU 未验证宿主坐标点击按设计降级（元素路径可用）；多屏负坐标坐标点击未验证；锁屏/安全桌面不可操作；WGC 采集 P2。
 - 安全：无 TLS/mTLS（仅 Bearer）；多执行器未支持；无文件系统读写工具。

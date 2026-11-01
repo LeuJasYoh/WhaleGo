@@ -1,8 +1,8 @@
 # WhaleGo 开发指南（v0.1，新增实现文档）
 
 > 定位：**怎么在本仓库开发/构建/测试/调试/改契约**。部署与运维见 [docs/DEPLOY.md](DEPLOY.md)。
-> 上位文档：`DESIGN.md`（v0.5，为什么）、`ARCHITECTURE.md`（v0.5，分层/接口/测试 seam/T1–T7）、`PROTOCOL.md`（v1.2，工具面唯一事实源）、`contracts/whalego.tools.v1.json`（`contract_version="1.2"`）、`GUI.md`（v0.3，GUI 宿主）。
-> 本文为**新增文档**，不改变既有文档版本号（DESIGN/ARCH/README v0.5、PROTOCOL v1.2、GUI v0.3）。
+> 上位文档：`DESIGN.md`（v0.5，为什么）、`ARCHITECTURE.md`（v0.5，分层/接口/测试 seam/T1–T7）、`PROTOCOL.md`（v1.3，工具面唯一事实源）、`contracts/whalego.tools.v1.json`（`contract_version="1.3"`）、`GUI.md`（v0.3，GUI 宿主）。
+> 本文为**新增文档**，不改变既有文档版本号（DESIGN/ARCH/README v0.5、PROTOCOL v1.3、GUI v0.3）。
 > 标注约定：**[已验证]** = 本机实际执行过；**[按设计]** = 依契约/架构实现后应如此。
 
 ---
@@ -18,7 +18,7 @@ D:\Projects\PCCtrl
 │   ├── evidence/container-env.md    # 环境证据（容器/宿主工具链）
 │   └── evidence/implementation-e2e.md  # 实现验收结果（DESIGN §11 oracle 表）
 ├── contracts/
-│   ├── whalego.tools.v1.json        # 工具面机器可读契约（单一事实源，contract_version=1.2）
+│   ├── whalego.tools.v1.json        # 工具面机器可读契约（单一事实源，contract_version=1.3）
 │   └── README.md                    # 如何改契约/跑一致性检查
 ├── windows/                         # C#/.NET 10 执行器解决方案
 │   ├── WhaleGo.sln / global.json（SDK 10.0.401）/ Directory.Build.props（warnings-as-errors 等）
@@ -148,7 +148,7 @@ windows/src/WhaleGo.Executor/bin/Release/net10.0-windows/WhaleGo.Executor.exe
 ```powershell
 $tmp = Join-Path $env:TEMP ("whalego-dev-" + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force -Path (Join-Path $tmp 'data'), (Join-Path $tmp 'logs') | Out-Null
-# config.json 可参考 scripts/lib/WhaleGo.TestEnv.psm1 的 New-WhaleGoTestDataDir（端口/token 哈希/审计目录/allowlist）
+# config.json 可参考 scripts/lib/WhaleGo.TestEnv.psm1 的 New-WhaleGoTestDataDir（端口/token 哈希/审计目录）
 $env:WHALEGO_DATA_DIR = Join-Path $tmp 'data'
 windows/src/WhaleGo.Executor/bin/Release/net10.0-windows/WhaleGo.Executor.exe --headless --no-hotkey --config (Join-Path $tmp 'config.json')
 # 另一个窗口：
@@ -215,7 +215,7 @@ Start-Process windows/tests/WhaleGo.Fixtures.Elevated/bin/Release/net10.0-window
 
 ## 5. 契约同步工作流（本仓库最重要的一条流水线）
 
-**单一事实源 = `docs/PROTOCOL.md` v1.2；机器可读镜像 = `contracts/whalego.tools.v1.json`；两端（C# Executor / Python 插件）都从契约为准。**
+**单一事实源 = `docs/PROTOCOL.md` v1.3；机器可读镜像 = `contracts/whalego.tools.v1.json`；两端（C# Executor / Python 插件）都从契约为准。**
 
 修改流程（顺序不能变）：
 1. 先改 `docs/PROTOCOL.md`（语义/参数/错误码/返回；升版本规则见 PROTOCOL §9）。
@@ -229,7 +229,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-contract.ps1 -
 # 依赖 uv：uv run --no-project --with mcp==1.30.0 python scripts/check-contract/contract_check.py ...
 ```
 
-门禁断言（CI 必须全绿）：7 个工具名精确一致；描述一致；inputSchema 结构一致（**剥离 x-internal 属性后**、键序不敏感）；模型面 schema 无 `session_id`/`request_id`/`scope`；`contract_version="1.2"`；`protocol_version=1`；`/mcp` 无 token 401。
+门禁断言（CI 必须全绿）：7 个工具名精确一致；描述一致；inputSchema 结构一致（**剥离 x-internal 属性后**、键序不敏感）；模型面 schema 无 `session_id`/`request_id`/`scope`；`contract_version="1.3"`；`protocol_version=1`；`/mcp` 无 token 401。
 
 规则：
 - 新增可选字段/枚举值 → 不升主版本（会检查）；删除字段/改语义/改工具名 → `protocol_version + 1`（需 Lead 决策并同步全部文档）。
@@ -253,7 +253,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/e2e.ps1
    normal 执行器 → 全部正常用例；停进程并等待退出 → `policy.readonly=true` 执行器 → 只读负例；
 2. 真实 mcp 1.30.0 客户端（Bearer token；隐藏内部参数 `session_id`，与插件行为一致）；
 3. 覆盖用例：`/healthz 200`、`/mcp` 无 token/错 token 401、7 工具、`go_health.protocol_version=1 + accepting_actions`、
-   `go_apps`/`go_windows`、`go_launch` allowlist 夹具、`go_observe` 树+PNG 截图、无截图 observe 不图、
+   `go_apps`/`go_windows`、`go_launch` 夹具（绝对路径）、`go_observe` 树+PNG 截图、无截图 observe 不图、`go_act hotkey`（ctrl+s）、
    `go_act` `set_value`/`type`/`click` + 读回 oracle、D7 500 字读回、125% DPI 坐标点击（frame 映射）、
    审计断言（type/set_value 的 text_length + sha256 前缀、无明文/token；D-1 回归）、旧 state_id → `STALE_STATE`、
    `go_stop` → `SESSION_STOPPED`、停止后观察仍可用、只读执行器 `READONLY_MODE`、双会话 `CONTROLLER_BUSY`；
@@ -262,10 +262,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/e2e.ps1
 
 **本机最终实测结果**（final 二进制，2026-10-31）：
 ```text
-RESULT: 72 passed, 0 failed, 0 skipped   (normal phase)
+RESULT: 75 passed, 0 failed, 0 skipped   (normal phase)
 AUDIT ASSERTIONS: 9 passed, 0 failed       (D-1 regression: text_length + sha256 prefix, no plaintext)
 RESULT: 14 passed, 0 failed, 0 skipped   (readonly phase)
-TOTAL: 86 passed, 0 failed, 0 skipped    -> E2E PASSED
+TOTAL: 89 passed, 0 failed, 0 skipped    -> E2E PASSED
 ```
 
 已知边界（E2E 仍不覆盖，如实记录）：
@@ -275,7 +275,7 @@ TOTAL: 86 passed, 0 failed, 0 skipped    -> E2E PASSED
 - **UIPI_BLOCKED**：需要管理员窗口，手工（`WhaleGo.Fixtures.Elevated`），不进 CI。
 - **锁屏 SESSION_LOCKED / 审计目录只读 / provider 无 image / 焦点切走 / 保存对话框两支**：需要人工或环境注入，
   记录在 [docs/evidence/implementation-e2e.md](evidence/implementation-e2e.md) 的“未能自动化”清单。
-- **E2E 里不能构造 UNSUPPORTED_ACTION**：v1 模型面 schema 已排除组合键/右键/双击等表达（设计如此），由 schema+单测覆盖。
+- **E2E 里不能构造 UNSUPPORTED_ACTION**：v1 模型面 schema 已排除右键/双击/拖拽/粘贴等表达（设计如此），由 schema+单测覆盖；组合键已由 `go_act op=hotkey` 覆盖（夹具 ctrl+s oracle）。
 
 结果写入 [docs/evidence/implementation-e2e.md](evidence/implementation-e2e.md)（每条：前置/夹具/oracle/预期/实际/PASS-FAIL/证据命令）。
 
@@ -353,9 +353,9 @@ Python（插件，见 ARCHITECTURE §4）：
 7. **GUI 主题截图**：`gui-theme-shots.ps1` 在 T7 GuiShell 仍为 scaffold 时打印计划并 SKIP（不伪造截图）；T7 完成后按脚本内计划实现 PrintWindow 截图。**状态：stub（P1 可选）**。
 8. **run-executor.ps1 的 -Port**：使用执行器正式 CLI `--port <int>`（不再用 cmd.exe 环境包装），打印的 PID 即执行器 PID，便于调用方停止。**状态：已实现并验证**。
 9. **夹具不在最初的 sln 中**：由 Lead 加入 `windows/WhaleGo.sln`（T6 不编辑 sln）；当前 solution 已包含两个夹具项目。**状态：已解决**。
-10. **文档版本**：DEPLOY/DEV 为新增实现文档 v0.1；既有文档版本不变（DESIGN/ARCH/README v0.5、PROTOCOL v1.2、GUI v0.3、contract_version 1.2）。**状态：符合约束**。
+10. **文档版本**：DEPLOY/DEV 为新增实现文档 v0.1；既有文档版本（DESIGN/ARCH/README v0.5、PROTOCOL v1.3、GUI v0.3、contract_version 1.3）。**状态：符合约束**。
 11. **证据基线（已补齐）**：宿主/容器环境与 C#↔Python MCP 1.30 往返证据在 `docs/evidence/container-env.md`；
-    实现验收（385 .NET 测试 / 150 插件测试 / 契约门禁 8 项 / E2E 86 用例 + 9 项审计断言 / 自检 / 容器链路 / 审计隐私）
+    实现验收（401 .NET 测试 / 150 插件测试 / 契约门禁 8 项 / E2E 89 用例 + 9 项审计断言 / 自检 / 容器链路 / 审计隐私）
     在 `docs/evidence/implementation-e2e.md`，未能自动化的项如实列“MANUAL/PARTIAL”。**状态：已记录（2026-10-31）**。
 12. **审计输入元数据（已修复）**：`go_act type/set_value` 的审计记录现在写入 `text_length`（Unicode rune 数）+
     `text_sha256_prefix`（SHA-256 hex 前 8 位），仍无明文。修复前为 null（曾报 T4）；D-1 修复后由 `scripts/e2e.ps1`
@@ -367,11 +367,10 @@ Python（插件，见 ARCHITECTURE §4）：
    已在后台运行的实例——新进程立即退出，可见窗口属于另一个 pid；旧实现只等"新进程自己的窗口"，于是关闭 Edge 后再
    `go_launch edge` 会误报 `LAUNCH_FAILED`（虽然窗口其实已经出现）。现按 (a) 启动 pid → (b) 新窗口 `app_id` 匹配
    allowlisted exe → (c) 激活已有实例 的顺序解析窗口；`activated=true` 仍按成功返回。回归：
-   `LaunchTests.AllowlistLaunch_SingleInstanceHandoff_ResolvesNewWindowByAppId`（Platform.Tests 111→112）；实机
-   `go_launch edge`（激活已有 Edge）/ `go_launch weixin`（激活已有微信）均 PASS。另：`launch.allowlist` 当前在启动时
-   注入 Platform（`AppLauncher` 单例），**修改后需重启执行器**（GUI 规格称热生效；差异记录于此，P2 再改热加载）。
+   `LaunchTests.Launch_SingleInstanceHandoff_ResolvesNewWindowByAppId`（Platform.Tests 111→112）；实机
+   `go_launch edge`（激活已有 Edge）/ `go_launch weixin`（激活已有微信）均 PASS。（v1.3 已改为无白名单解析，见 item 17。）
    **状态：已修并实测**。
-15. **启动白名单 GUI 暴露 + 可关闭（2026-10-31 20:25）**：白名单本来就存在（D4），但此前只在「执行策略」页里，概览不可见。
+15. **启动白名单 GUI 暴露 + 可关闭（2026-10-31 20:25；v1.3 已删除，见 item 17）**：白名单本来就存在（D4），但此前只在「执行策略」页里，概览不可见。
    现在：概览卡片新增「启动白名单：启用 · N 个应用」状态行 +「设置启动白名单」跳转按钮；执行策略页新增
    `launch.enforceAllowlist` 开关（默认开，GUI 保存时显示高风险警告）。关闭后执行器接受**存在的绝对 `.exe` 路径**
    （仍是写动作、审计 fail-closed、无参数；`go_health.capabilities.launch_mode=unrestricted`，`capabilities.launch`
@@ -395,3 +394,11 @@ Python（插件，见 ARCHITECTURE §4）：
 - 实现验收：[docs/evidence/implementation-e2e.md](evidence/implementation-e2e.md)（DESIGN §11 oracle 表逐条：前置/夹具/oracle/预期/实际/PASS-FAIL/证据命令）。
 - 复现入口：`scripts/build.ps1 → scripts/test.ps1 → scripts/check-contract.ps1 -CheckHealth → scripts/e2e.ps1`。
 - 提交前检查（本地）：构建 0 warning、dotnet test 全绿、contract gate 通过、E2E 无 FAIL（SKIP 需在证据文档解释）；不提交 .tmp/、bin/、obj/、secrets。
+
+17. **v1.3：删除启动白名单 + 组合键 hotkey（2026-11-01）**：按产品决定，`go_launch` 不再有 allowlist：
+    `app` 支持程序名（notepad/calc）、系统别名（含中文别名）、桌面/开始菜单快捷方式或完整路径；重名返回
+    `AMBIGUOUS_APP` 候选，找不到 `APP_NOT_FOUND`；配置项 `launch.allowlist`/`launch.enforceAllowlist` 与 GUI
+    编辑器/概览状态一并删除。`go_act` 新增 `op=hotkey`（如 ctrl+s/alt+f4，含 win，无黑白名单），element target，
+    前台 SendInput、回执 unverified；`capabilities.actions` 含 hotkey，`capabilities.launch=["app","path","activate"]`。
+    验证：401 .NET 测试全绿（Contracts 89 / Platform 129 / Executor 65 / Gui 118）；插件 150 pytest + ruff；
+    契约门禁 PASS（contract_version=1.3）；E2E 89 用例全绿（新增 hotkey ctrl+s 夹具 oracle）。此条取代 item 15。

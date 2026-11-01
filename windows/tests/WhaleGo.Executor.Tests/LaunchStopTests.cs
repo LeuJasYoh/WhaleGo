@@ -7,11 +7,11 @@ using WhaleGo.Executor.Tests.TestSupport;
 
 namespace WhaleGo.Executor.Tests;
 
-/// <summary>go_launch allowlist / write-action semantics and go_stop session-only kill switch.</summary>
+/// <summary>go_launch resolution / write-action semantics and go_stop session-only kill switch.</summary>
 public sealed class LaunchStopTests
 {
     [Fact]
-    public async Task Launch_AllowlistApp_Succeeds()
+    public async Task Launch_KnownApp_Succeeds()
     {
         await using var environment = await TestEnvironment.StartAsync();
         var client = await environment.ConnectAsync();
@@ -26,7 +26,8 @@ public sealed class LaunchStopTests
         Assert.Equal(4321, report["app"]!["pid"]!.GetValue<int>());
 
         Assert.Equal(1, environment.Launcher.Calls);
-        Assert.Equal("notepad", environment.Launcher.LastRequest!.AppName);
+        Assert.Equal("notepad", environment.Launcher.LastRequest!.Target!.DisplayName);
+        Assert.Equal(LaunchTargetKind.Alias, environment.Launcher.LastRequest.Target.Kind);
         Assert.Null(environment.Launcher.LastRequest.AppId);
         Assert.Contains(environment.Audit.Events, auditEvent => auditEvent.Tool == "go_launch");
     }
@@ -47,13 +48,13 @@ public sealed class LaunchStopTests
     }
 
     [Fact]
-    public async Task Launch_NotInAllowlist_IsInvalidArgument()
+    public async Task Launch_UnknownApp_IsAppNotFound()
     {
         await using var environment = await TestEnvironment.StartAsync();
         var client = await environment.ConnectAsync();
         var result = await environment.CallAsync(client, "go_launch", new Dictionary<string, object?> { ["app"] = "evil.exe" });
         Assert.True(result.IsError == true);
-        Assert.StartsWith("ERROR[INVALID_ARGUMENT]:", ToolResultsTest.FirstText(result));
+        Assert.StartsWith("ERROR[APP_NOT_FOUND]:", ToolResultsTest.FirstText(result));
         Assert.Equal(0, environment.Launcher.Calls);
     }
 

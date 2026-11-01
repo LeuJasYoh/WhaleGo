@@ -49,6 +49,8 @@ public sealed class TestEnvironment : IAsyncDisposable
 
     public FakeAppLauncher Launcher => Platform.Launcher;
 
+    public FakeInstalledAppCatalog InstalledApps => Platform.InstalledApps;
+
     public FakeScreenCapture Capture => Platform.Capture;
 
     public FakeObservationEngine Engine => Platform.Engine;
@@ -130,6 +132,7 @@ public sealed class TestEnvironment : IAsyncDisposable
                 services.AddSingleton<ISystemProbe>(environment.Platform.Probe);
                 services.AddSingleton<IPlatformClock>(environment.Clock);
                 services.AddSingleton<IAppLauncher>(environment.Platform.Launcher);
+                services.AddSingleton<IInstalledAppCatalog>(environment.Platform.InstalledApps);
                 services.AddSingleton<IWindowTheme>(environment.Platform.Theme);
                 services.AddSingleton<IHotkeyRegistrar>(environment.Platform.Hotkeys);
                 if (useFakeAudit)
@@ -324,6 +327,8 @@ public sealed class TestPlatform
     public FakeCoordinateActionDispatcher CoordinateDispatcher { get; } = new();
 
     public FakeAppLauncher Launcher { get; } = new();
+
+    public FakeInstalledAppCatalog InstalledApps { get; } = new();
 
     public FakeSystemProbe Probe { get; } = new();
 

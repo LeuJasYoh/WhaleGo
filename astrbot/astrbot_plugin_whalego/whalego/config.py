@@ -3,7 +3,7 @@
 本模块不得 import astrbot（见 ARCHITECTURE §2.2 / §4.1）：配置校验、契约加载与
 资源加载都必须能在 `uv` venv + pytest 下脱离 AstrBot 直接测试。
 
-关键约束（PROTOCOL v1.2 / contracts contract_version=1.2）：
+关键约束（PROTOCOL v1.3 / contracts contract_version=1.3）：
 - 契约文件是工具面的单一事实源；模型面 schema 必须过滤掉 `x-internal: true` 的参数。
 - 插件 timeout 默认 45s，必须 clamp 到 AstrBot `tool_call_timeout - 5s`；
   若结果 <= 执行器整体预算（<=40s）必须告警（PROTOCOL §7 / D12）。
@@ -21,7 +21,7 @@ from typing import Any, Final
 
 PLUGIN_NAME: Final = "astrbot_plugin_whalego"
 PLUGIN_VERSION: Final = "0.1.0"
-CONTRACT_VERSION: Final = "1.2"
+CONTRACT_VERSION: Final = "1.3"
 PROTOCOL_VERSION: Final = 1
 
 DEFAULT_URL: Final = "http://host.docker.internal:8765/mcp"

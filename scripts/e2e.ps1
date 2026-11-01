@@ -6,12 +6,12 @@
 
 .DESCRIPTION
   Starts:
-    - normal executor on a free port with a temp config (screenshot enabled, fixture in the launch allowlist);
+    - normal executor on a free port with a temp config (screenshot enabled);
     - readonly executor on a second free port with policy.readonly=true.
   Then runs scripts/e2e/mcp_e2e.py via "uv run --no-project --with mcp==1.30.0 python ...", which drives
   the real MCP Streamable HTTP endpoint and asserts the DESIGN section 11 oracle cases:
     /healthz 200; /mcp no token 401; 7 tools; go_health protocol_version=1 + accepting_actions;
-    go_apps/go_windows; go_launch allowlist fixture; go_observe tree+PNG; no automatic image;
+    go_apps/go_windows; go_launch fixture by path; go_observe tree+PNG; no automatic image;
     go_act set_value/type/click + readback oracles; STALE_STATE after acting with an old state_id;
     go_stop -> SESSION_STOPPED; observe still works after stop; READONLY_MODE; CONTROLLER_BUSY (2 sessions).
   Prints PASS/FAIL per case and exits non-zero if any case failed or a setup step failed.
@@ -122,8 +122,8 @@ New-Item -ItemType Directory -Force -Path $normalRoot, $readonlyRoot | Out-Null
 
 $normalTokenInfo = New-WhaleGoToken
 $readonlyTokenInfo = New-WhaleGoToken
-$normalEnv = New-WhaleGoTestDataDir -Root $normalRoot -Port $Port -Token $normalTokenInfo.Token -Sha256 $normalTokenInfo.Sha256 -FixtureExe $fixture
-$readonlyEnv = New-WhaleGoTestDataDir -Root $readonlyRoot -Port $ReadonlyPort -Token $readonlyTokenInfo.Token -Sha256 $readonlyTokenInfo.Sha256 -FixtureExe $fixture -Readonly
+$normalEnv = New-WhaleGoTestDataDir -Root $normalRoot -Port $Port -Token $normalTokenInfo.Token -Sha256 $normalTokenInfo.Sha256
+$readonlyEnv = New-WhaleGoTestDataDir -Root $readonlyRoot -Port $ReadonlyPort -Token $readonlyTokenInfo.Token -Sha256 $readonlyTokenInfo.Sha256 -Readonly
 
 $normalProcess = $null
 $readonlyProcess = $null

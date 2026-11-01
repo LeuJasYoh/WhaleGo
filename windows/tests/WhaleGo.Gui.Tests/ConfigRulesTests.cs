@@ -1,4 +1,3 @@
-using System.IO;
 using WhaleGo.Contracts.Model;
 using WhaleGo.Gui.Validation;
 
@@ -64,39 +63,6 @@ public sealed class ConfigRulesTests
     }
 
     [Theory]
-    [InlineData("notepad", true)]
-    [InlineData("my-app_2", true)]
-    [InlineData("", false)]
-    [InlineData("has space", false)]
-    [InlineData("this-name-is-way-too-long-for-the-limit", false)]
-    public void AllowlistNamesAreValidated(string name, bool valid) =>
-        Assert.Equal(valid, ConfigRules.ValidateAllowlistName(name) is null);
-
-    [Fact]
-    public void AllowlistNamesMustBeUnique()
-    {
-        Assert.NotNull(ConfigRules.ValidateAllowlistName("notepad", ["notepad"]));
-        Assert.Null(ConfigRules.ValidateAllowlistName("calc", ["notepad"]));
-    }
-
-    [Fact]
-    public void AllowlistPathsMustBeAbsoluteAndExist()
-    {
-        Assert.NotNull(ConfigRules.ValidateAllowlistPath("notepad.exe"));
-        Assert.NotNull(ConfigRules.ValidateAllowlistPath(Path.Combine(Path.GetTempPath(), "does-not-exist-whalego.exe")));
-
-        var temp = Path.GetTempFileName();
-        try
-        {
-            Assert.Null(ConfigRules.ValidateAllowlistPath(temp));
-        }
-        finally
-        {
-            File.Delete(temp);
-        }
-    }
-
-    [Theory]
     [InlineData("0.0.0.0", true)]
     [InlineData("127.0.0.1", true)]
     [InlineData("192.168.1.10", true)]
@@ -159,7 +125,5 @@ public sealed class ConfigRulesTests
     {
         Assert.Equal(ConfigDefaults.ListenPort, GuiConfigDefaults.Get(ConfigKeys.ListenPort));
         Assert.Equal(ConfigDefaults.AuditDir, GuiConfigDefaults.Get(ConfigKeys.LoggingDir));
-        Assert.NotNull(GuiConfigDefaults.Get(ConfigKeys.LaunchAllowlist));
-        Assert.Equal(4, ((IReadOnlyList<LaunchAllowlistEntry>)GuiConfigDefaults.Get(ConfigKeys.LaunchAllowlist)!).Count);
     }
 }

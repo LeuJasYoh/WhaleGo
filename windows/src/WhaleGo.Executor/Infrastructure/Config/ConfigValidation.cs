@@ -80,19 +80,6 @@ public static class ConfigValidation
             errors.Add("ui.theme 只能是 system|light|dark");
         }
 
-        if (config.LaunchAllowlist.Count == 0)
-        {
-            errors.Add("launch.allowlist 不能为空");
-        }
-
-        foreach (var entry in config.LaunchAllowlist)
-        {
-            if (string.IsNullOrWhiteSpace(entry.Name) || string.IsNullOrWhiteSpace(entry.Path))
-            {
-                errors.Add("launch.allowlist 条目必须同时包含 name 与 path");
-            }
-        }
-
         if (config.HotkeysEnabled && string.IsNullOrWhiteSpace(config.HotkeysEmergencyStop))
         {
             errors.Add("hotkeys.emergencyStop 不能为空");

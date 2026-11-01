@@ -142,7 +142,7 @@ tags: [mcp, computer-use, windows, automation]
 
 > 执行器侧本地配置键（`config.json` camelCase，**不是插件 schema**）：`listen.*`、`policy.*`、`limits.*`（执行器预算，插件不重复）、
 > `screenshot.*`（默认 `enabled=true`、`defaultInclude=false`）、`privacy.*`、`audit.*`、`hotkeys.{enabled,emergencyStop,openSettings}`、
-> `ui.{notificationsLevel,theme}`（`theme` = `system|light|dark`，默认 `system`，热切换）、`logging.{level,dir}`、`launch.allowlist`
+> `ui.{notificationsLevel,theme}`（`theme` = `system|light|dark`，默认 `system`，热切换）、`logging.{level,dir}`
 > （见 DESIGN §5.8，D4/D14/Q4/Q6）；启动方式 = 手动启动（不自启，Q5）。
 
 ### 4.3 命令
@@ -174,7 +174,7 @@ tags: [mcp, computer-use, windows, automation]
 | GUI 项目/测试 | `WhaleGo.Gui` / `WhaleGo.Gui.Tests`（WPF 设置窗口 + WinForms 托盘，只引用 Contracts；窗口标题「WhaleGo 设置」；浅/深主题） |
 | 配置/密钥/状态文件 | `%APPDATA%\WhaleGo\config.json`、`%LOCALAPPDATA%\WhaleGo\secrets.json`、`%LOCALAPPDATA%\WhaleGo\control-state.json` |
 | 互斥/窗口事件 | `Local\WhaleGo.Executor.SingleInstance` / `Local\WhaleGo.Executor.ShowSettings`（手动启动，不自启） |
-| 无头参数与注入 | `--headless`、`--self-check --json`、`--no-hotkey`、`--config <path>`、`--diagnostics-dump`；`prompts/usage.md`；`contract_version="1.2"` |
+| 无头参数与注入 | `--headless`、`--self-check --json`、`--no-hotkey`、`--config <path>`、`--diagnostics-dump`；`prompts/usage.md`；`contract_version="1.3"` |
 | 默认端口 | 8765（不变） |
 
 ---

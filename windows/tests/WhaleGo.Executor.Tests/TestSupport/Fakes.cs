@@ -272,6 +272,20 @@ public sealed class FakeAppLauncher : IAppLauncher
     }
 }
 
+public sealed class FakeInstalledAppCatalog : IInstalledAppCatalog
+{
+    public Dictionary<string, InstalledAppInfo> Apps { get; } = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["notepad"] = new("notepad", @"C:\Windows\System32\notepad.exe", LaunchTargetKind.Alias, "alias"),
+        ["calc"] = new("calc", @"C:\Windows\System32\calc.exe", LaunchTargetKind.Alias, "alias"),
+    };
+
+    public InstalledAppResolveResult Resolve(string name) =>
+        Apps.TryGetValue((name ?? string.Empty).Trim(), out var app)
+            ? InstalledAppResolveResult.Found(app)
+            : InstalledAppResolveResult.Missing();
+}
+
 public sealed class FakeAuditSink : IAuditSink
 {
     private readonly object _lock = new();

@@ -1,15 +1,11 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using WhaleGo.Contracts.Model;
 
 namespace WhaleGo.Executor.Infrastructure.Config;
 
 /// <summary>One hashed bearer token recorded in config.json (plaintext lives only in secrets.json).</summary>
 public sealed record TokenConfigEntry(string Name, string Sha256, string? CreatedAt);
-
-/// <summary>One go_launch allowlist entry.</summary>
-public sealed record LaunchEntryConfig(string Name, string Path);
 
 /// <summary>Immutable typed snapshot of the effective configuration (all sources merged).</summary>
 public sealed record ExecutorConfig(
@@ -41,13 +37,9 @@ public sealed record ExecutorConfig(
     string UiNotificationsLevel,
     string UiTheme,
     string LoggingLevel,
-    string LoggingDirRaw,
-    bool LaunchEnforceAllowlist,
-    IReadOnlyList<LaunchEntryConfig> LaunchAllowlist)
+    string LoggingDirRaw)
 {
     public string ListenEndpoint => ListenAddress + ":" + ListenPort.ToString(System.Globalization.CultureInfo.InvariantCulture);
-
-    public IReadOnlyList<string> LaunchAllowlistNames => LaunchAllowlist.Select(entry => entry.Name).ToList();
 }
 
 public sealed class ConfigValidationException : Exception

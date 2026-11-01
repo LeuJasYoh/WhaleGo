@@ -11,9 +11,9 @@ namespace WhaleGo.Executor.Application;
 /// <summary>Builds the single go_health response (whalego-health-v1) from live state.</summary>
 public sealed class HealthService
 {
-    private static readonly string[] ActionCapabilities = ["click", "set_value", "type", "key", "scroll"];
+    private static readonly string[] ActionCapabilities = ["click", "set_value", "type", "key", "hotkey", "scroll"];
     private static readonly string[] TargetCapabilities = ["element", "coordinate"];
-    private static readonly string[] LaunchCapabilities = ["allowlist", "activate"];
+    private static readonly string[] LaunchCapabilities = ["app", "path", "activate"];
 
     private readonly ConfigService _config;
     private readonly SessionManager _sessions;
@@ -54,10 +54,6 @@ public sealed class HealthService
             observation.Add("screenshot_printwindow");
         }
 
-        var launchCapabilities = config.LaunchEnforceAllowlist
-            ? LaunchCapabilities
-            : new[] { "unrestricted", "activate" };
-
         var now = _clock.NowMs;
         var uptimeMs = Math.Max(0, now - _runtime.StartedAtMs);
         return new HealthReport(
@@ -79,9 +75,7 @@ public sealed class HealthService
                 Observation: observation,
                 Actions: ActionCapabilities,
                 Targets: TargetCapabilities,
-                Launch: launchCapabilities,
-                LaunchAllowlist: config.LaunchAllowlistNames,
-                LaunchMode: config.LaunchEnforceAllowlist ? "allowlist" : "unrestricted"),
+                Launch: LaunchCapabilities),
             Paused: paused,
             PauseReason: paused ? _sessions.PauseReason : null,
             PausedSinceMs: paused ? _sessions.PausedSinceMs : null,

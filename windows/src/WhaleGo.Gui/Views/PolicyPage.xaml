@@ -11,7 +11,7 @@
         </Grid.RowDefinitions>
         <StackPanel>
             <TextBlock Text="执行策略" Style="{DynamicResource Text.PageTitle}" />
-            <TextBlock Text="动作、预算、截图与启动白名单；标「重启生效」的项保存后需重启执行器"
+            <TextBlock Text="动作、预算与截图；标「重启生效」的项保存后需重启执行器"
                        Style="{DynamicResource Text.PageSubtitle}" />
         </StackPanel>
         <controls:InlineBanner Grid.Row="1" Margin="0,14,0,14" Severity="Info" Title="截图隐私边界"

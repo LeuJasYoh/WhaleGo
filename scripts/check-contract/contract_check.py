@@ -12,7 +12,7 @@ Asserts:
   2. tool descriptions match exactly (whitespace-trimmed);
   3. inputSchema is structurally equal after normalization;
   4. no internal parameter name (session_id / request_id / scope) appears in the model-facing schema;
-  5. static: contract_version == "1.2", protocol_version == 1;
+  5. static: contract_version == "1.3", protocol_version == 1;
   6. optional --check-health: go_health.protocol_version == 1 and accepting_actions present.
 
 Exit codes: 0 = PASS, 1 = contract mismatch, 2 = setup/connection error.
@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import Any
 
 INTERNAL_PARAM_NAMES = frozenset({"session_id", "request_id", "scope"})
-EXPECTED_CONTRACT_VERSION = "1.2"
+EXPECTED_CONTRACT_VERSION = "1.3"
 EXPECTED_PROTOCOL_VERSION = 1
 EXPECTED_TOOL_COUNT = 7
 DEFAULT_SESSION_ID = "wg-8f21cd04f00dbeef"  # wg- + 16 hex (sha256(umo)[:16])

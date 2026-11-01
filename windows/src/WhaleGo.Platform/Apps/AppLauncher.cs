@@ -8,26 +8,23 @@ namespace WhaleGo.Platform.Apps;
 
 /// <summary>
 /// go_launch platform implementation (docs/PROTOCOL.md section 3.8).
-/// Start path: allowlist name -> absolute existing exe -> UseShellExecute=false -> bounded wait for a
-/// main window of the new process. app_id path: activate the existing application main window.
-/// No PATH names, no relative paths, no arguments, no retry, never acquires the controller lease.
+/// Start path: executable -> direct Process.Start and wait for its main window; shortcut/alias ->
+/// ShellExecute and wait for a NEW window (or activation of the existing foreground window).
+/// app_id path: activate the existing application main window.
+/// No arguments, no retry, never acquires the controller lease.
 /// </summary>
 /// <remarks>
 /// Failure mapping convention for the application layer (LaunchResult has no code field):
 /// <list type="bullet">
 /// <item><see cref="IndicatesLaunchTimeout"/>: process was started but no main window appeared within wait_ms -> LAUNCH_TIMEOUT.</item>
-/// <item><see cref="IndicatesLaunchFailure"/>: nothing was started (bad allowlist entry/path/start exception/process died) -> LAUNCH_FAILED.</item>
+/// <item><see cref="IndicatesLaunchFailure"/>: nothing was started (bad path/start exception/process died) -> LAUNCH_FAILED.</item>
 /// <item><see cref="IndicatesAppActivated"/>: existing app/window activated (Launched=false, Activated=true) -> success.</item>
 /// </list>
-/// APP_NOT_FOUND/AMBIGUOUS_APP are resolved by the application layer before calling (allowlist/app_id lookup);
-/// this implementation returns <see cref="IndicatesLaunchFailure"/> for an unknown name/app_id.
 /// <para>
 /// Single-instance apps (Microsoft Edge, Weixin/WeChat, most browsers/IM clients) do not necessarily expose a
 /// window owned by the process this code started: the launched stub may exit and hand off to an already-running
-/// background instance, and the visible window then belongs to a different pid. Therefore the wait resolves a
-/// launch window by (a) the started pid, (b) a NEW window whose app_id matches the allowlisted executable, and
-/// finally (c) activation of an already-running instance. Without that fallback, reopening a closed browser
-/// looked like LAUNCH_FAILED even though a window appeared.
+/// instance. Therefore the wait resolves a launch window by (a) the started pid, (b) a NEW top-level window that
+/// appeared after the start, and finally (c) activation of an already-running instance (foreground changed).
 /// </para>
 /// </remarks>
 public sealed class AppLauncher : IAppLauncher
@@ -35,13 +32,11 @@ public sealed class AppLauncher : IAppLauncher
     private const int SettleMs = 120;
     private const int PollMs = 50;
 
-    private readonly IReadOnlyList<LaunchAllowlistEntry> _allowlist;
     private readonly IWindowCatalog _windows;
     private readonly WindowActivator _activator;
 
-    public AppLauncher(IReadOnlyList<LaunchAllowlistEntry> allowlist, IWindowCatalog windows, WindowActivator activator)
+    public AppLauncher(IWindowCatalog windows, WindowActivator activator)
     {
-        _allowlist = allowlist ?? Array.Empty<LaunchAllowlistEntry>();
         _windows = windows ?? throw new ArgumentNullException(nameof(windows));
         _activator = activator ?? throw new ArgumentNullException(nameof(activator));
     }
@@ -51,9 +46,11 @@ public sealed class AppLauncher : IAppLauncher
         ArgumentNullException.ThrowIfNull(request);
         ct.ThrowIfCancellationRequested();
 
-        if (!string.IsNullOrWhiteSpace(request.AppName))
+        if (request.Target is not null)
         {
-            return await LaunchByNameAsync(request, ct).ConfigureAwait(false);
+            return request.Target.Kind == LaunchTargetKind.Executable
+                ? await LaunchExecutableAsync(request.Target, request.WaitMs, ct).ConfigureAwait(false)
+                : await LaunchViaShellAsync(request.Target, request.WaitMs, ct).ConfigureAwait(false);
         }
 
         if (!string.IsNullOrWhiteSpace(request.AppId))
@@ -73,29 +70,18 @@ public sealed class AppLauncher : IAppLauncher
     public static bool IndicatesAppActivated(LaunchResult result) =>
         result is { Launched: false, Activated: true };
 
-    private async Task<LaunchResult> LaunchByNameAsync(LaunchRequest request, CancellationToken ct)
+    private async Task<LaunchResult> LaunchExecutableAsync(LaunchTarget target, int waitMs, CancellationToken ct)
     {
-        var name = request.AppName!.Trim();
-        var entry = _allowlist.FirstOrDefault(candidate =>
-            string.Equals(candidate.Name, name, StringComparison.OrdinalIgnoreCase));
-        if (entry is null && request.AllowAbsolutePath && IsAbsoluteExePath(name))
-        {
-            // Local policy escape hatch (launch.enforceAllowlist=false): the model may name an absolute
-            // existing .exe instead of an allowlist entry. Still no PATH lookup, no relative paths, no args.
-            entry = new LaunchAllowlistEntry(name, name);
-        }
-
-        if (entry is null || !IsSafeExecutablePath(entry.Path))
+        var path = target.LaunchPath;
+        if (!IsAbsoluteExistingExe(path))
         {
             return Failure();
         }
 
-        // Resolve the identity BEFORE starting: even if the started stub exits (single-instance handoff),
-        // the visible window carries this app_id.
         string expectedAppId;
         try
         {
-            expectedAppId = AppIdentity.ForExePath(entry.Path);
+            expectedAppId = AppIdentity.ForExePath(path);
         }
         catch (Exception)
         {
@@ -103,15 +89,14 @@ public sealed class AppLauncher : IAppLauncher
         }
 
         var preExistingWindowIds = SnapshotWindowIds();
-
         Process? process;
         try
         {
             var startInfo = new ProcessStartInfo
             {
-                FileName = entry.Path,
+                FileName = path,
                 UseShellExecute = false,
-                WorkingDirectory = Path.GetDirectoryName(entry.Path) ?? string.Empty,
+                WorkingDirectory = Path.GetDirectoryName(path) ?? string.Empty,
                 Arguments = string.Empty,
             };
             process = Process.Start(startInfo);
@@ -128,9 +113,132 @@ public sealed class AppLauncher : IAppLauncher
 
         using (process)
         {
-            var waitMs = Math.Clamp(request.WaitMs, 0, 10000);
-            return await WaitForLaunchWindowAsync(process, expectedAppId, preExistingWindowIds, waitMs, ct).ConfigureAwait(false);
+            return await WaitForLaunchWindowAsync(
+                process, expectedAppId, preExistingWindowIds, Math.Clamp(waitMs, 0, 10000), ct).ConfigureAwait(false);
         }
+    }
+
+    private async Task<LaunchResult> LaunchViaShellAsync(LaunchTarget target, int waitMs, CancellationToken ct)
+    {
+        var preExistingWindowIds = SnapshotWindowIds();
+        var previousForeground = ListWindowsSafe().FirstOrDefault(window => window.IsForeground)?.WindowId;
+
+        Process? process;
+        try
+        {
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = target.LaunchPath,
+                UseShellExecute = true,
+                WorkingDirectory = Path.GetDirectoryName(target.LaunchPath) ?? string.Empty,
+            };
+            process = Process.Start(startInfo);
+        }
+        catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or IOException or UnauthorizedAccessException)
+        {
+            return Failure();
+        }
+
+        if (process is null)
+        {
+            return await WaitForNewWindowAsync(preExistingWindowIds, Math.Clamp(waitMs, 0, 10000), ct).ConfigureAwait(false);
+        }
+
+        using (process)
+        {
+            return await WaitForShellLaunchAsync(
+                process, preExistingWindowIds, previousForeground, Math.Clamp(waitMs, 0, 10000), ct).ConfigureAwait(false);
+        }
+    }
+
+    private async Task<LaunchResult> WaitForShellLaunchAsync(
+        Process process,
+        HashSet<string> preExistingWindowIds,
+        string? previousForeground,
+        int waitMs,
+        CancellationToken ct)
+    {
+        var result = await WaitForNewWindowCoreAsync(
+            preExistingWindowIds, process.Id, waitMs, ct).ConfigureAwait(false);
+        if (result.Window is not null)
+        {
+            return result;
+        }
+
+        var activated = TryActivatedFallback(previousForeground);
+        if (activated is not null)
+        {
+            return activated;
+        }
+
+        return process.HasExited ? Failure() : result;
+    }
+
+    private async Task<LaunchResult> WaitForNewWindowAsync(
+        HashSet<string> preExistingWindowIds,
+        int waitMs,
+        CancellationToken ct) =>
+        await WaitForNewWindowCoreAsync(preExistingWindowIds, pid: null, waitMs, ct).ConfigureAwait(false);
+
+    private async Task<LaunchResult> WaitForNewWindowCoreAsync(
+        HashSet<string> preExistingWindowIds,
+        int? pid,
+        int waitMs,
+        CancellationToken ct)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        WindowInfo? candidate = null;
+        string? stableId = null;
+        RectI stableBounds = default;
+        long stableSinceMs = -1;
+
+        while (true)
+        {
+            ct.ThrowIfCancellationRequested();
+            var window = FindNewWindow(ListWindowsSafe(), pid, preExistingWindowIds);
+            if (window is not null)
+            {
+                candidate = window;
+                if (!string.Equals(stableId, window.WindowId, StringComparison.Ordinal) || stableBounds != window.Bounds)
+                {
+                    stableId = window.WindowId;
+                    stableBounds = window.Bounds;
+                    stableSinceMs = stopwatch.ElapsedMilliseconds;
+                }
+                else if (stopwatch.ElapsedMilliseconds - stableSinceMs >= SettleMs)
+                {
+                    return new LaunchResult(true, window.Pid, window.AppId, window, Activated: false, Settled: true);
+                }
+            }
+
+            if (stopwatch.ElapsedMilliseconds >= waitMs)
+            {
+                break;
+            }
+
+            await Task.Delay(PollMs, CancellationToken.None).ConfigureAwait(false);
+        }
+
+        if (candidate is not null)
+        {
+            return new LaunchResult(true, candidate.Pid, candidate.AppId, candidate, Activated: false, Settled: false);
+        }
+
+        return new LaunchResult(false, pid, null, null, Activated: false, Settled: false);
+    }
+
+    private LaunchResult? TryActivatedFallback(string? previousForeground)
+    {
+        var foreground = ListWindowsSafe().FirstOrDefault(window => window.IsForeground);
+        if (foreground is null ||
+            !foreground.IsOnscreen ||
+            !string.Equals(foreground.Kind, "top-level", StringComparison.Ordinal) ||
+            string.Equals(foreground.WindowId, previousForeground, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        return new LaunchResult(false, foreground.Pid, foreground.AppId, foreground, Activated: true, Settled: true);
     }
 
     private HashSet<string> SnapshotWindowIds()
@@ -140,6 +248,7 @@ public sealed class AppLauncher : IAppLauncher
         {
             ids.Add(window.WindowId);
         }
+
         return ids;
     }
 
@@ -216,6 +325,7 @@ public sealed class AppLauncher : IAppLauncher
             {
                 return activated;
             }
+
             return Failure();
         }
 
@@ -253,6 +363,28 @@ public sealed class AppLauncher : IAppLauncher
         return newByApp.Count > 0 ? ChooseMain(newByApp) : null;
     }
 
+    private static WindowInfo? FindNewWindow(
+        IReadOnlyList<WindowInfo> windows,
+        int? pid,
+        HashSet<string> preExistingWindowIds)
+    {
+        if (pid is not null)
+        {
+            var owned = windows.Where(window => window.Pid == pid.Value).ToList();
+            if (owned.Count > 0)
+            {
+                return ChooseMain(owned);
+            }
+        }
+
+        var newWindows = windows
+            .Where(window => !preExistingWindowIds.Contains(window.WindowId) &&
+                             window.IsOnscreen &&
+                             string.Equals(window.Kind, "top-level", StringComparison.Ordinal))
+            .ToList();
+        return newWindows.Count > 0 ? ChooseMain(newWindows) : null;
+    }
+
     private static WindowInfo ChooseMain(IReadOnlyList<WindowInfo> windows) =>
         windows.FirstOrDefault(window => window.IsOnscreen && !window.IsMinimized && window.IsEnabled && window.Kind == "top-level")
         ?? windows.FirstOrDefault(window => window.IsOnscreen && window.Kind == "top-level")
@@ -271,6 +403,7 @@ public sealed class AppLauncher : IAppLauncher
             {
                 return null;
             }
+
             existing = app.Windows.ToList();
         }
 
@@ -386,13 +519,10 @@ public sealed class AppLauncher : IAppLauncher
         }
     }
 
-    private static bool IsSafeExecutablePath(string? path) =>
+    private static bool IsAbsoluteExistingExe(string? path) =>
         !string.IsNullOrWhiteSpace(path) &&
         Path.IsPathFullyQualified(path) &&
-        File.Exists(path);
-
-    private static bool IsAbsoluteExePath(string? path) =>
-        IsSafeExecutablePath(path) &&
+        File.Exists(path) &&
         string.Equals(Path.GetExtension(path), ".exe", StringComparison.OrdinalIgnoreCase);
 
     private static LaunchResult Failure() => new(false, null, null, null, Activated: false, Settled: false);

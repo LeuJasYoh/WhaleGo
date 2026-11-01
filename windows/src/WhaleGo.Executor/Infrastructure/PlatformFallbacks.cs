@@ -54,6 +54,11 @@ public sealed class FallbackAppLauncher : IAppLauncher
         Task.FromResult(new LaunchResult(false, null, null, null, false, false));
 }
 
+public sealed class FallbackInstalledAppCatalog : IInstalledAppCatalog
+{
+    public InstalledAppResolveResult Resolve(string name) => InstalledAppResolveResult.Missing();
+}
+
 public sealed class FallbackElementActionDispatcher : IElementActionDispatcher
 {
     public Task<PlatformActionOutcome> ExecuteAsync(string stateId, int elementIndex, ActionPlan plan, CancellationToken ct) =>

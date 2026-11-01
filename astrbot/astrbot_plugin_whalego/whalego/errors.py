@@ -113,7 +113,7 @@ DEFAULT_MESSAGES: Final[Mapping[str, str]] = {
 NEXT_STEP_HINTS: Final[Mapping[str, str]] = {
     "EXECUTOR_UNREACHABLE": "在 Windows 托盘确认 WhaleGo 正在运行（手动启动），然后 /whalego health。",
     "AUTH_FAILED": "在 Windows 端「设置 → 连接与配对」复制插件配置，更新 token 后重载插件。",
-    "PROTOCOL_MISMATCH": "升级插件或执行器，使 protocol_version 一致（当前契约 v1.2）。",
+    "PROTOCOL_MISMATCH": "升级插件或执行器，使 protocol_version 一致（当前契约 v1.3）。",
     "READONLY_MODE": "管理员执行 /whalego readonly off（或修改插件配置）。",
     "DISPATCH_UNCERTAIN": "先 go_observe 重新观察，再决定是否继续；不要重复调用同一个动作。",
 }

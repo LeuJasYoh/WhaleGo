@@ -1,14 +1,10 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using WhaleGo.Contracts.Abstractions;
-using WhaleGo.Contracts.Model;
 using WhaleGo.Executor.Infrastructure;
 using WhaleGo.Executor.Infrastructure.Config;
 using WhaleGo.Platform;
-using WhaleGo.Platform.Apps;
 using WhaleGo.Platform.Privacy;
 using WhaleGo.Platform.Uia;
 
@@ -37,10 +33,7 @@ public static class PlatformComposition
         });
         services.AddObservationPlatform();
 
-        var allowlist = config.LaunchAllowlist
-            .Select(entry => new LaunchAllowlistEntry(entry.Name, entry.Path))
-            .ToList();
-        services.AddInputPlatform(new LaunchAllowlistOptions(allowlist));
+        services.AddInputPlatform();
     }
 
     /// <summary>TryAdd-only fallbacks: they never override a real T2/T3 registration (order-insensitive).</summary>
@@ -52,6 +45,7 @@ public static class PlatformComposition
         services.TryAddSingleton<IScreenCapture, FallbackScreenCapture>();
         services.TryAddSingleton<IUiHitTester, FallbackUiHitTester>();
         services.TryAddSingleton<IAppLauncher, FallbackAppLauncher>();
+        services.TryAddSingleton<IInstalledAppCatalog, FallbackInstalledAppCatalog>();
         services.TryAddSingleton<IElementActionDispatcher, FallbackElementActionDispatcher>();
         services.TryAddSingleton<ICoordinateActionDispatcher, FallbackCoordinateActionDispatcher>();
         services.TryAddSingleton<IInputLane, FallbackInputLane>();

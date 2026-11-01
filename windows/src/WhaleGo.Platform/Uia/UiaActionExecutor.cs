@@ -110,6 +110,7 @@ public sealed class UiaActionExecutor : IElementActionDispatcher
                 "set_value" => await Task.Run(() => SetValue(element, plan), ct).ConfigureAwait(false),
                 "type" => await TypeAsync(element, resolution, plan, ct).ConfigureAwait(false),
                 "key" => await Task.Run(() => PressKey(element, resolution, plan), ct).ConfigureAwait(false),
+                "hotkey" => await HotkeyAsync(element, resolution, plan, ct).ConfigureAwait(false),
                 "scroll" => await Task.Run(() => Scroll(element, resolution, plan), ct).ConfigureAwait(false),
                 _ => PlatformActionOutcome.NotSent(ErrorCodes.UnsupportedAction),
             };
@@ -388,6 +389,76 @@ public sealed class UiaActionExecutor : IElementActionDispatcher
             return result.AnyQueued
                 ? PlatformActionOutcome.PossiblySent(MethodPostMessage, escalated: false, "post_message_partial: " + result.Error)
                 : PlatformActionOutcome.NotSent(ErrorCodes.ElementUnavailable, result.Error);
+        }
+        finally
+        {
+            lease?.Dispose();
+        }
+    }
+
+    private async Task<PlatformActionOutcome> HotkeyAsync(
+        AutomationElement element,
+        ElementResolution resolution,
+        ActionPlan plan,
+        CancellationToken ct)
+    {
+        if (!KeyChordParser.TryParseHotkey(plan.Hotkey, out var chord))
+        {
+            return PlatformActionOutcome.NotSent(ErrorCodes.InvalidArgument, "unsupported_hotkey");
+        }
+
+        var hwnd = ResolveWindowHwnd(element, resolution);
+        if (hwnd == 0)
+        {
+            return PlatformActionOutcome.NotSent(ErrorCodes.ElementUnavailable, "no_window_handle");
+        }
+
+        ForegroundGuard.ForegroundLease? lease;
+        try
+        {
+            lease = _foreground.IsForeground(hwnd) ? null : _foreground.TryEnter(hwnd);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return PlatformActionOutcome.NotSent(ErrorCodes.ForegroundRequired, ex.Message);
+        }
+
+        if (!_foreground.IsForeground(hwnd) && lease is null)
+        {
+            return PlatformActionOutcome.NotSent(ErrorCodes.ForegroundRequired);
+        }
+
+        try
+        {
+            try
+            {
+                element.Focus();
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                return PlatformActionOutcome.NotSent(ErrorCodes.ElementUnavailable, "focus_failed: " + ex.Message);
+            }
+
+            var sent = false;
+            try
+            {
+                await _lane.RunAsync<bool>(
+                    _ =>
+                    {
+                        sent = true;
+                        _sendInput.SendChord(chord);
+                        return Task.FromResult(true);
+                    },
+                    ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                return sent
+                    ? PlatformActionOutcome.PossiblySent(MethodSendInput, escalated: false, "send_input_after_dispatch: " + ex.Message)
+                    : PlatformActionOutcome.NotSent(ErrorCodes.Internal, ex.Message);
+            }
+
+            return AcceptUnverified(MethodSendInput, escalated: false, "hotkey_no_readback");
         }
         finally
         {

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -19,14 +18,16 @@ namespace WhaleGo.Executor.Application;
 public sealed record LaunchOutcome(LaunchReport Report, string OkSummary, long LeaseWaitMs);
 
 /// <summary>
-/// go_launch: allowlist-only start or activate-existing. Write action → durable audit preflight is fail-closed
-/// (AUDIT_UNAVAILABLE and nothing launched if the audit record cannot be persisted).
+/// go_launch: start a resolved app (desktop/Start-Menu shortcut, execution alias, absolute path) or activate
+/// an existing app. Write action → durable audit preflight is fail-closed (nothing launched if the audit
+/// record cannot be persisted).
 /// </summary>
 public sealed class AppLaunchService
 {
     private readonly SessionManager _sessions;
     private readonly WindowService _windows;
     private readonly IAppLauncher _launcher;
+    private readonly IInstalledAppCatalog _catalog;
     private readonly ConfigService _config;
     private readonly AuditService _audit;
     private readonly ISystemProbe _systemProbe;
@@ -37,6 +38,7 @@ public sealed class AppLaunchService
         SessionManager sessions,
         WindowService windows,
         IAppLauncher launcher,
+        IInstalledAppCatalog catalog,
         ConfigService config,
         AuditService audit,
         ISystemProbe systemProbe,
@@ -46,6 +48,7 @@ public sealed class AppLaunchService
         _sessions = sessions;
         _windows = windows;
         _launcher = launcher;
+        _catalog = catalog;
         _config = config;
         _audit = audit;
         _systemProbe = systemProbe;
@@ -77,27 +80,38 @@ public sealed class AppLaunchService
         var session = _sessions.GetOrCreate(sessionId);
         EnsureAllowed(session, config);
 
-        LaunchEntryConfig? entry = null;
+        LaunchTarget? target = null;
+        string? displayName = null;
         if (hasApp)
         {
             var name = app!.Trim();
-            entry = config.LaunchAllowlist.FirstOrDefault(candidate =>
-                string.Equals(candidate.Name, name, StringComparison.OrdinalIgnoreCase));
-            if (entry is null && !config.LaunchEnforceAllowlist && IsAbsoluteExePath(name))
+            var resolved = _catalog.Resolve(name);
+            if (resolved.App is null)
             {
-                // launch.enforceAllowlist=false (local GUI policy escape hatch): absolute .exe path allowed.
-                // Still no PATH lookup, no relative paths, no arguments; audited as a write action.
-                entry = new LaunchEntryConfig(name, name);
+                if (string.Equals(resolved.ErrorCode, "ambiguous_app", StringComparison.Ordinal))
+                {
+                    throw WhaleGoToolException.FromCode(
+                        ErrorCodes.AmbiguousApp,
+                        message: "找到多个同名应用，请换用更精确的名称或完整路径。",
+                        details: new Dictionary<string, object?>
+                        {
+                            ["candidates"] = resolved.Candidates
+                                .Select(candidate => new Dictionary<string, object?>
+                                {
+                                    ["name"] = candidate.DisplayName,
+                                    ["path"] = candidate.LaunchPath,
+                                })
+                                .ToList(),
+                        });
+                }
+
+                throw WhaleGoToolException.FromCode(
+                    ErrorCodes.AppNotFound,
+                    message: $"找不到应用“{name}”：可以用程序名（notepad/calc）、桌面/开始菜单名称或完整路径。");
             }
 
-            if (entry is null)
-            {
-                throw WhaleGoToolException.FromCode(
-                    ErrorCodes.InvalidArgument,
-                    message: config.LaunchEnforceAllowlist
-                        ? $"只能启动 allowlist 内的应用（{string.Join("/", config.LaunchAllowlistNames)}）；关闭白名单可在 Windows 设置「执行策略」里操作。"
-                        : "启动白名单已关闭：app 必须是白名单名称或存在的绝对 .exe 路径。");
-            }
+            target = new LaunchTarget(resolved.App.DisplayName, resolved.App.LaunchPath, resolved.App.Kind);
+            displayName = resolved.App.DisplayName;
         }
 
         var stopped = Stopwatch.StartNew();
@@ -143,11 +157,7 @@ public sealed class AppLaunchService
         try
         {
             result = await _launcher.LaunchAsync(
-                new LaunchRequest(
-                    AppName: entry?.Name,
-                    AppId: hasAppId ? appId!.Trim() : null,
-                    WaitMs: waitMs,
-                    AllowAbsolutePath: !config.LaunchEnforceAllowlist),
+                new LaunchRequest(target, hasAppId ? appId!.Trim() : null, waitMs),
                 cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -190,7 +200,7 @@ public sealed class AppLaunchService
             App: result.AppId is null && result.Pid is null ? null : new LaunchAppReport(result.AppId ?? string.Empty, result.Pid),
             Window: result.Window is null ? null : new LaunchWindowReport(result.Window.WindowId, result.Window.Title, result.Window.IsOnscreen),
             Settled: result.Settled);
-        var okSummary = BuildOkSummary(result, hasApp ? entry!.Name : null);
+        var okSummary = BuildOkSummary(result, displayName ?? (hasApp ? app!.Trim() : null));
         return new LaunchOutcome(report, okSummary, leaseWaitMs);
     }
 
@@ -231,21 +241,15 @@ public sealed class AppLaunchService
         session.RecordAct(_clock.NowMs);
     }
 
-    private static bool IsAbsoluteExePath(string? path) =>
-        !string.IsNullOrWhiteSpace(path) &&
-        Path.IsPathFullyQualified(path) &&
-        File.Exists(path) &&
-        string.Equals(Path.GetExtension(path), ".exe", StringComparison.OrdinalIgnoreCase);
-
     private static bool IndicatesLaunchTimeout(LaunchResult result) =>
         result is { Launched: false, Activated: false, Pid: not null, Window: null };
 
     private static bool IndicatesLaunchFailure(LaunchResult result) =>
         result is { Launched: false, Activated: false, Pid: null, Window: null };
 
-    private static string BuildOkSummary(LaunchResult result, string? allowlistName)
+    private static string BuildOkSummary(LaunchResult result, string? displayName)
     {
-        var target = allowlistName ?? result.AppId ?? "app";
+        var target = displayName ?? result.AppId ?? "app";
         if (result.Launched)
         {
             var pid = result.Pid is null ? string.Empty : " pid=" + result.Pid.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);

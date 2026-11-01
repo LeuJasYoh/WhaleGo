@@ -100,8 +100,11 @@ public sealed class AuthAndHealthTests
         Assert.Equal(0, report["audit_dropped"]!.GetValue<long>());
         Assert.True(report["sessions"]!.GetValue<int>() >= 1);
 
-        var allowlist = report["capabilities"]!["launch_allowlist"]!.AsArray().Select(node => node!.GetValue<string>()).ToList();
-        Assert.Contains("notepad", allowlist);
+        var launch = report["capabilities"]!["launch"]!.AsArray().Select(node => node!.GetValue<string>()).ToList();
+        Assert.Contains("app", launch);
+        Assert.Contains("activate", launch);
+        var actions = report["capabilities"]!["actions"]!.AsArray().Select(node => node!.GetValue<string>()).ToList();
+        Assert.Contains("hotkey", actions);
 
         var observation = report["capabilities"]!["observation"]!.AsArray().Select(node => node!.GetValue<string>()).ToList();
         Assert.Contains("uia_tree", observation);

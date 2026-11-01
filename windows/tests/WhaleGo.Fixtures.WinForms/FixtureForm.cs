@@ -26,6 +26,7 @@ internal sealed class FixtureForm : Form
     private readonly Button _clickTargetButton = new();
     private readonly Label _clickCountLabel = new();
     private readonly Button _disabledButton = new();
+    private readonly Label _hotkeyLabel = new();
 
     private int _counter;
     private int _panelClicks;
@@ -40,6 +41,8 @@ internal sealed class FixtureForm : Form
         SuspendLayout();
         ConfigureForm();
         BuildLayout();
+        KeyPreview = true;
+        KeyDown += OnFormKeyDown;
         ResumeLayout(performLayout: true);
 
         _statusTimer = new System.Windows.Forms.Timer { Interval = 200 };
@@ -170,10 +173,11 @@ internal sealed class FixtureForm : Form
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
             ColumnCount = 2,
-            RowCount = 2,
+            RowCount = 3,
         };
         grid.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
@@ -197,10 +201,18 @@ internal sealed class FixtureForm : Form
         _statusLabel.Font = new Font("Consolas", 10F, FontStyle.Regular, GraphicsUnit.Point);
         _statusLabel.Margin = new Padding(0, 8, 0, 0);
 
+        _hotkeyLabel.Name = "lblHotkey";
+        _hotkeyLabel.Text = "none";
+        _hotkeyLabel.AutoSize = true;
+        _hotkeyLabel.Font = new Font("Consolas", 10F, FontStyle.Regular, GraphicsUnit.Point);
+        _hotkeyLabel.Margin = new Padding(0, 4, 0, 0);
+
         grid.Controls.Add(_incrementButton, 0, 0);
         grid.Controls.Add(_counterLabel, 1, 0);
         grid.Controls.Add(_statusLabel, 0, 1);
         grid.SetColumnSpan(_statusLabel, 2);
+        grid.Controls.Add(_hotkeyLabel, 0, 2);
+        grid.SetColumnSpan(_hotkeyLabel, 2);
         group.Controls.Add(grid);
         return group;
     }
@@ -380,6 +392,50 @@ internal sealed class FixtureForm : Form
         grid.Controls.Add(side, 1, 0);
         group.Controls.Add(grid);
         return group;
+    }
+
+    private void OnFormKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.KeyCode is Keys.ControlKey or Keys.ShiftKey or Keys.Menu or Keys.LWin or Keys.RWin)
+        {
+            return;
+        }
+
+        var parts = new List<string>(5);
+        if (e.Control)
+        {
+            parts.Add("ctrl");
+        }
+
+        if (e.Alt)
+        {
+            parts.Add("alt");
+        }
+
+        if (e.Shift)
+        {
+            parts.Add("shift");
+        }
+
+        var code = e.KeyCode;
+        if (code is >= Keys.A and <= Keys.Z)
+        {
+            parts.Add(char.ToLowerInvariant((char)code).ToString());
+        }
+        else if (code is >= Keys.D0 and <= Keys.D9)
+        {
+            parts.Add(((int)code - (int)Keys.D0).ToString(CultureInfo.InvariantCulture));
+        }
+        else if (code is >= Keys.F1 and <= Keys.F24)
+        {
+            parts.Add("f" + ((int)code - (int)Keys.F1 + 1).ToString(CultureInfo.InvariantCulture));
+        }
+        else
+        {
+            parts.Add(code.ToString().ToLowerInvariant());
+        }
+
+        _hotkeyLabel.Text = string.Join("+", parts);
     }
 
     private void OnStatusTick(object? sender, EventArgs e) => RefreshStatus();

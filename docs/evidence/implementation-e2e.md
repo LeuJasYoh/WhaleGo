@@ -351,3 +351,22 @@ dotnet build windows/tests/WhaleGo.Fixtures.WinForms -c Release
 - **产品 bug 2 个已由本轮门禁发现并修复**（token 验证、config 键大小写）；**审计元数据偏差 D-1 已修复并加入 E2E 回归断言**；1 个文档不一致已修（session_id 示例）。
 - **剩余未自动化项**集中在 GUI/托盘/热键/锁屏/UIPI/多 DPI/焦点串窗与插件真实容器调用（见 §5.1），需要在 GUI 就绪后按 DEPLOY/DEV + GUI.md 手工清单补跑；D-1 已修复并由 E2E 内置审计断言持续回归（9/9 PASS）。
 - 本文件后续如有补跑（GUI 双主题截图、100%/200% DPI、UIPI 手工、容器内 AstrBot 真实调用），在 §4 对应行追加"实际/结论"并注明日期。
+---
+
+## v1.3 验收追加（2026-11-01）
+
+> 产品决定：删除启动白名单（`launch.allowlist`/`launch.enforceAllowlist` 及 GUI 编辑器/概览状态），`go_launch`
+> 改为程序名/桌面/开始菜单/完整路径解析；`go_act` 新增 `op=hotkey`（前台 SendInput，含 win/alt+f4，无黑白名单）。
+> 历史记录保留在本文上文；本节为 v1.3 的最终验证。
+
+| 验收块 | 结果 |
+|---|---|
+| 解决方案构建（Release，含测试/夹具） | ✅ 0 warnings / 0 errors |
+| .NET 测试（Contracts 89 + Platform 129 + Executor 65 + Gui 118） | ✅ 401 passed / 0 failed / 0 skipped |
+| AstrBot 插件（pytest + ruff） | ✅ 150 passed；ruff clean |
+| 契约门禁 `tools/list` vs `contracts/whalego.tools.v1.json`（contract_version=1.3） | ✅ PASS（7 工具、描述、x-internal-stripped schema、无内部参数） |
+| E2E（真实执行器 + mcp 1.30；新增 `go_act hotkey(ctrl+s)` 夹具 oracle） | ✅ 89 passed / 0 failed / 0 skipped（normal 75 + readonly 14） |
+| 审计断言 | ✅ 9 passed / 0 failed |
+
+关键证据：E2E 中 `go_act hotkey` 返回 `accepted`、`verification=unverified/hotkey_no_readback`，夹具 `lblHotkey`
+记录到 `ctrl+s`（真实 SendInput 前台注入）；`go_launch(app=<夹具绝对路径>)` 在无白名单下成功启动并返回窗口。

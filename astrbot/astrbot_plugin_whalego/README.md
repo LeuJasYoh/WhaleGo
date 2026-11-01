@@ -2,12 +2,13 @@
 
 > AstrBot 4.29.3 插件：容器内的模型通过 MCP（Streamable HTTP + Bearer Token）连接 Windows 上的
 > **WhaleGo Executor**，观察并操作桌面（UIA 树 / 可选截图 / 点击 / 输入）。
-> `go_` 是 WhaleGo 的品牌前缀，**不是 Go 语言**。契约版本 `contract_version=1.2`（PROTOCOL v1.2）。
+> `go_` 是 WhaleGo 的品牌前缀，**不是 Go 语言**。契约版本 `contract_version=1.3`（PROTOCOL v1.3）。
 
 ## 功能
 
 - 注册 7 个模型可见工具（工具面唯一事实源 = `whalego/contracts/whalego.tools.v1.json`）：
   `go_health / go_apps / go_windows / go_observe / go_act / go_launch / go_stop`。
+  其中 `go_act` 支持 click/set_value/type/key/hotkey/scroll（hotkey 为组合键，如 ctrl+s、alt+f4）。
 - 模型看不到也传不了 `session_id` / `request_id` / `scope`：插件按 umo 派生
   `wg-<sha256(umo)[:16]>` 注入；`go_stop` 的 `scope` 固定为 `session`（模型只能停本会话）。
 - 统一的模型可见文本：成功 `OK:`、失败 `ERROR[<code>]:`（AstrBot 不读 `isError`，故用文本前缀兜底）。
@@ -94,19 +95,19 @@ AstrBot 对**非内置工具**的默认权限是 `member`（源码已核实：`p
 
 `inject_usage_prompt=true` 时经 `on_llm_request` 注入 ≤15 行固定规则：先找目标、
 动作前必须 `go_observe`、动作后 state 失效需重观察、`OK:`/`ERROR[...]` 语义、
-`possibly_sent` 禁止重试、`CONTROLLER_BUSY` 退避、v1 不支持组合键/右键/双击/拖拽/粘贴、
+`possibly_sent` 禁止重试、`CONTROLLER_BUSY` 退避、组合键用 `go_act op=hotkey`、仍不支持右键/双击/拖拽/粘贴、
 截图隐私与不得转发、暂停/停止只能本机恢复、读长文用 `max_value_chars`。单测锁定与 PROTOCOL §12 同步。
 
 ## v1 已知限制
 
-组合键/右键/双击/拖拽/粘贴；菜单弹层可靠编排；保存对话框全自动（仅元素点击可及则尽力，否则明确失败）；
+右键/双击/拖拽/粘贴；菜单弹层可靠编排；保存对话框全自动（仅元素点击可及则尽力，否则明确失败）；
 长文档全量读取（受 `max_value_chars` 与预算约束）；Chromium/GPU 未验证宿主坐标点击；多屏负坐标坐标点击；
 锁屏/安全桌面操作；文件系统读写；远程恢复止血；多语言/自动更新/安装器/代码签名；多执行器/TLS。
 **不做 WebUI/WebView，不做开机自启（手动启动）**。
 
 ## 实现说明与 v1 偏差（Lead 裁决，2026-10-31）
 
-本插件按 PROTOCOL v1.2 实现；下列“文档措辞/早期假设 vs 实现”的差异已由 Lead 裁决接受，v1 内不作为缺陷处理：
+本插件按 PROTOCOL v1.3 实现；下列“文档措辞/早期假设 vs 实现”的差异已由 Lead 裁决接受，v1 内不作为缺陷处理：
 
 1. **超时键解析**：AstrBot 4.29.3 的实际键是 `agent_runner.config.misc.tool_call_timeout`（默认 120s）；
    插件优先读它，读不到再回退文档中的 `provider_settings.tool_call_timeout`。`timeout` 默认 45s，
@@ -166,4 +167,4 @@ uv pip install --python .venv/Scripts/python.exe pytest pytest-asyncio "mcp==1.3
 ## 版本
 
 - 插件版本 `0.1.0`；目标 AstrBot `>=4.29,<5`（容器实测 4.29.3，mcp 1.30.0）。
-- 契约 `contract_version = 1.2`，`protocol_version = 1`（PROTOCOL v1.2）。
+- 契约 `contract_version = 1.3`，`protocol_version = 1`（PROTOCOL v1.3）。

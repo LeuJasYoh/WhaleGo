@@ -30,8 +30,6 @@ public static class ConfigRules
 
     public static readonly IReadOnlyList<string> ThemeValues = ["system", "light", "dark"];
 
-    private static readonly Regex AllowlistNamePattern = new("^[A-Za-z0-9_-]{1,32}$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
-
     private static readonly Regex TokenNamePattern = new("^[A-Za-z0-9_-]{1,32}$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     /// <summary>Integer ranges from docs/GUI.md 6.2.</summary>
@@ -192,40 +190,6 @@ public static class ConfigRules
         return text.Contains(',', StringComparison.Ordinal) ? "请一行一个规则，不要用逗号拼接" : null;
     }
 
-    public static string? ValidateAllowlistName(string? value, IEnumerable<string>? otherNames = null)
-    {
-        var text = (value ?? string.Empty).Trim();
-        if (text.Length == 0)
-        {
-            return "名称不能为空";
-        }
-
-        if (!AllowlistNamePattern.IsMatch(text))
-        {
-            return "名称 1–32 字符，仅限字母/数字/下划线/连字符";
-        }
-
-        return otherNames is not null && otherNames.Contains(text, StringComparer.OrdinalIgnoreCase)
-            ? "名称重复"
-            : null;
-    }
-
-    public static string? ValidateAllowlistPath(string? value)
-    {
-        var text = (value ?? string.Empty).Trim();
-        if (text.Length == 0)
-        {
-            return "路径不能为空";
-        }
-
-        if (!Path.IsPathRooted(text))
-        {
-            return "必须是绝对路径";
-        }
-
-        return File.Exists(text) ? null : "文件不存在";
-    }
-
     public static string? ValidateTokenName(string? value) =>
         TokenNamePattern.IsMatch((value ?? string.Empty).Trim()) ? null : "名称 1–32 字符，仅限字母/数字/下划线/连字符";
 
@@ -269,18 +233,9 @@ public static class ConfigRules
 /// <summary>Defaults used to pre-fill fields when the kernel config does not contain a key yet.</summary>
 public static class GuiConfigDefaults
 {
-    public static readonly IReadOnlyList<LaunchAllowlistEntry> LaunchAllowlist =
-    [
-        new("notepad", @"C:\Windows\System32\notepad.exe"),
-        new("calc", @"C:\Windows\System32\calc.exe"),
-        new("mspaint", @"C:\Windows\System32\mspaint.exe"),
-        new("explorer", @"C:\Windows\explorer.exe"),
-    ];
-
     public static object? Get(string key) => key switch
     {
         ConfigKeys.LoggingDir => ConfigDefaults.AuditDir,
-        ConfigKeys.LaunchAllowlist => LaunchAllowlist,
         ConfigKeys.PrivacySensitiveWindows => ConfigDefaults.SensitiveWindows,
         ConfigKeys.AuditDir => ConfigDefaults.AuditDir,
         _ => ConfigDefaults.All.TryGetValue(key, out var value) ? value : null,

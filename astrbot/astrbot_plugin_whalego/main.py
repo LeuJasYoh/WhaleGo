@@ -186,7 +186,7 @@ class WhaleGoPlugin(Star):
             f"protocol_version={payload.get('protocol_version')} mcp_protocol_version={payload.get('mcp_protocol_version')}",
             f"paused={payload.get('paused')} stopped={payload.get('stopped')} "
             f"session_stopped={payload.get('session_stopped')} accepting_actions={payload.get('accepting_actions')}",
-            f"actions={capabilities.get('actions')}；launch_allowlist={capabilities.get('launch_allowlist')}",
+            f"actions={capabilities.get('actions')}；launch={capabilities.get('launch')}",
             f"会话：{session_id}",
         ]
         return "\n".join(lines)

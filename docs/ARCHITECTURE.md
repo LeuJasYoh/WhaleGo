@@ -1,6 +1,6 @@
 # WhaleGo 工程架构与分层封装设计（v0.5）
 
-> 配套文档：`DESIGN.md`（v0.5，决策/选型/总体架构）、`PROTOCOL.md`（v1.2，MCP 工具面与 JSON 契约）、`docs/GUI.md`（v0.3，GUI 宿主）。
+> 配套文档：`DESIGN.md`（v0.5，决策/选型/总体架构）、`PROTOCOL.md`（v1.3，MCP 工具面与 JSON 契约）、`docs/GUI.md`（v0.3，GUI 宿主）。
 > 本文回答三个问题：**功能怎么分层、边界怎么封装、代码怎么组织**。先设计后实现；本文不写业务代码。
 > 已确认的决策（2026-10-31）：Windows 执行器 = C#/.NET 10；AstrBot = Python 插件（MCP 客户端）；
 > 网络 = 监听 0.0.0.0 + Bearer Token 认证；动作策略 = 全自动 + 审计；GUI = WPF 设置窗口 + WinForms NotifyIcon 托盘（同进程，手动启动、不自启）。
@@ -224,7 +224,7 @@ public sealed record ActionTarget(
 public sealed record ActionRequest(
     string SchemaVersion,         // "whalego-act-v1"
     string SessionId,
-    string Op,                    // v1: click|set_value|type|key|scroll（P2 扩展）
+    string Op,                    // v1: click|set_value|type|key|hotkey|scroll（P2 扩展）
     ActionTarget Target,          // 必填：click/set_value/type/key/scroll 均须 target（D6）
     IReadOnlyDictionary<string, object?> Args,
     string Strategy,              // "auto" | "event"（本期忽略 a11y，保留字段）
@@ -503,7 +503,9 @@ type(element, text):
   元素路径优先 WM_CHAR/ValuePattern；需前台但无法安全激活 → FOREGROUND_REQUIRED 零发送（D6）
 key(element, 单键):
   元素 target 定向 PostMessage(WM_KEYDOWN/UP) / 必要时前台 SendInput；不向"当前焦点窗口"盲发；
-  组合键/修饰键 → UNSUPPORTED_ACTION（P2 再做，见评审 M10）
+hotkey(element, keys):
+  组合键（ctrl/alt/shift/win + 字母/数字/F 键/命名键）；前台 SendInput 一次提交；
+  回执 unverified；无黑白名单；win/alt+f4 等全部放开（v1.3）
 scroll:
   元素 → UIA ScrollPattern；坐标 → WPF/WinUI3 SB 码族后台 / 其余前台滚轮
 ```
@@ -590,7 +592,7 @@ public sealed class GoTools(ObservationService observation, ActionService action
 
 ```text
 contracts/
-  whalego.tools.v1.json      # 7 工具名字/描述/JSON Schema；contract_version="1.2"；internal 参数断言（D1/D17）
+  whalego.tools.v1.json      # 7 工具名字/描述/JSON Schema；contract_version="1.3"；internal 参数断言（D1/D17）
   README.md                 # 如何修改契约、如何跑一致性检查
 ```
 
@@ -602,7 +604,7 @@ contracts/
 
 为什么不"完全动态"（插件直接消费服务端 `tools/list`）：AstrBot 要求插件加载时就有工具；执行器离线时动态注册会失败。
 静态 schema（来自契约文件）+ 启动时一致性检查，兼顾"离线可用"与"不漂移"。**internal 参数断言**：`session_id`/`request_id`/`scope`
-必须标 `"internal": true` 且不得出现在模型面 `tools/list` schema（CI 失败即违规）；contract 与 PROTOCOL v1.2 做 diff。
+必须标 `"internal": true` 且不得出现在模型面 `tools/list` schema（CI 失败即违规）；contract 与 PROTOCOL v1.3 做 diff。
 
 ### 3.11 会话身份与请求生命周期
 
@@ -730,7 +732,7 @@ class WhaleGoClient:
     async def observe(self, session_id, *, window_id=None, app_id=None, include_screenshot=False,
                       max_elements=None, max_value_chars=None) -> ToolCallOutcome
     async def act(self, session_id, op, *, target, args=None) -> ToolCallOutcome     # target 必填
-    async def launch(self, session_id, *, app=None, app_id=None) -> ToolCallOutcome  # allowlist 二选一
+    async def launch(self, session_id, *, app=None, app_id=None) -> ToolCallOutcome  # 无白名单，app 或 app_id 二选一
     async def stop(self, session_id, reason=None) -> ToolCallOutcome                 # 只停本会话
 
 @dataclass
@@ -855,7 +857,7 @@ WhaleGo/
   docs/
     DESIGN.md              # 决策/选型/总体架构
     ARCHITECTURE.md        # 本文（分层/封装/接口/状态机/测试 seam）
-    PROTOCOL.md            # 工具面与 JSON 契约 v1.2（唯一事实源）
+    PROTOCOL.md            # 工具面与 JSON 契约 v1.3（唯一事实源）
     GUI.md                 # 托盘 + WPF 设置窗口宿主契约（v0.3；浅/深主题）
     DEPLOY.md              # 部署/网络/防火墙/排障
     DEV.md                 # 构建/运行/测试/贡献
@@ -886,11 +888,11 @@ WhaleGo/
 
 | 任务 | 范围（write scope） | 依赖 | 验收 |
 |---|---|---|---|
-| T1 Contracts+Domain | `windows/src/WhaleGo.Contracts/**`、`windows/tests/WhaleGo.Contracts.Tests/**`、`contracts/**` | — | DTO/接口/状态机/裁剪渲染单测全绿；契约文件 `contract_version="1.2"` 定稿；测试项目 `net10.0-windows` |
+| T1 Contracts+Domain | `windows/src/WhaleGo.Contracts/**`、`windows/tests/WhaleGo.Contracts.Tests/**`、`contracts/**` | — | DTO/接口/状态机/裁剪渲染单测全绿；契约文件 `contract_version="1.3"` 定稿；测试项目 `net10.0-windows` |
 | T2 Platform-观察 | `windows/src/WhaleGo.Platform/{Windows,Uia,Capture,System}/**` | T1 | 夹具窗口枚举/UIA 树/截图/state 缓存 |
 | T3 Platform-输入 | `windows/src/WhaleGo.Platform/{Input,Uia/UiaHitTester,Apps,Privacy}/**` | T1,T2 | UIA/PostMessage/SendInput 三路径 + hit-test 夹具通过 |
 | T4 Executor+守护 | `windows/src/WhaleGo.Executor/**`（含托盘/全局热键/P1 止血 + 组合根注入 IExecutorControl） | T1（可先 fake） | MCP 工具/认证/会话/租约/审计/E2E 脚本 |
-| T5 AstrBot 插件 | `astrbot/**` | PROTOCOL v1.2 | 容器内真实加载 + 7 工具 + 权限/图片/错误冒烟 |
+| T5 AstrBot 插件 | `astrbot/**` | PROTOCOL v1.3 | 容器内真实加载 + 7 工具 + 权限/图片/错误冒烟 |
 | T6 文档/脚本/E2E | `docs/**`、`scripts/**`、`windows/tests/**` | T1,T4 并行 | 文档可照做部署；E2E 全绿；D19 夹具（Fixtures.Elevated/焦点 watcher/双 MCP 连接/审计只读注入/provider 无 image 桩） |
 | T7 GUI（WinForms 托盘+WPF 设置窗口） | `windows/src/WhaleGo.Gui/**`、`windows/tests/WhaleGo.Gui.Tests/**`、`docs/GUI.md` | T1,T4 | WPF 设置窗口（浅/深主题热切换、参考 deepseek 视觉）/WinForms 托盘/5 步配对/6 页设置/止血 5 态/`--headless` 自检全绿；不做 WebUI；GUI 只引用 Contracts（架构测试） |
 

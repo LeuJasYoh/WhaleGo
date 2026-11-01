@@ -3,12 +3,12 @@
 Covers the DESIGN section 11 oracle cases that can be automated on this host:
   HTTP     : /healthz 200 (no auth); /mcp without token -> 401; /mcp with wrong token -> 401
   MCP      : tools/list == 7 contract tools; go_health(protocol_version=1, accepting_actions);
-             go_apps; go_windows; go_launch(allowlist fixture); go_observe(tree + PNG image);
+             go_apps; go_windows; go_launch(fixture by path); go_observe(tree + PNG image);
              go_observe(no screenshot -> no image); go_act set_value/type/click + verification readback;
              STALE_STATE after acting with an old state_id; SESSION_STOPPED after go_stop;
              go_observe still works after stop; READONLY_MODE on a readonly executor;
              CONTROLLER_BUSY with two sessions on one executor (skipped if the lease is not held).
-  Contract : first text line is always OK:/ERROR[<code>]: and error JSON codes match PROTOCOL v1.2.
+  Contract : first text line is always OK:/ERROR[<code>]: and error JSON codes match PROTOCOL v1.3.
 
 The AstrBot plugin injects session_id (internal, not in schema); this client does the same through the
 hidden argument. Exit code 0 only if no FAIL cases; SKIPs are reported and allowed.
@@ -432,8 +432,8 @@ async def run_mcp_cases(rep: Reporter, args: argparse.Namespace, contract_names:
         capabilities = health.get("capabilities") or {}
         rep.check("go_health.capabilities.actions is non-empty list", bool(capabilities.get("actions")))
         rep.check("go_health.capabilities.observation contains uia_tree", "uia_tree" in (capabilities.get("observation") or []))
-        allowlist = capabilities.get("launch_allowlist") or []
-        rep.check("go_health launch_allowlist contains fixture", "fixture" in allowlist, f"allowlist={allowlist}")
+        launch_capabilities = capabilities.get("launch") or []
+        rep.check("go_health launch capabilities contain app", "app" in launch_capabilities, f"launch={launch_capabilities}")
 
         # --- go_apps / go_windows ---
         apps_result = await call_tool(session, "go_apps", {"include_windows": False})
@@ -448,11 +448,11 @@ async def run_mcp_cases(rep: Reporter, args: argparse.Namespace, contract_names:
         rep.check("go_windows schema_version=whalego-windows-v1", windows.get("schema_version") == "whalego-windows-v1")
         rep.check("go_windows.windows is list", isinstance(windows.get("windows"), list))
 
-        # --- go_launch allowlist fixture ---
-        launch_result = await call_tool(session, "go_launch", {"app": "fixture", "wait_ms": 10000})
+        # --- go_launch fixture by absolute path (no allowlist) ---
+        launch_result = await call_tool(session, "go_launch", {"app": args.fixture, "wait_ms": 10000})
         launch_ok = is_query_ok(launch_result)
         launch = json_payload(launch_result) or {}
-        rep.check("go_launch(app=fixture) OK: first line", launch_ok, first_line(launch_result))
+        rep.check("go_launch(app=<fixture path>) OK: first line", launch_ok, first_line(launch_result))
         rep.check("go_launch schema_version=whalego-launch-v1", launch.get("schema_version") == "whalego-launch-v1")
         rep.check("go_launch.launched=true", launch.get("launched") is True)
         app_info = launch.get("app") or {}
@@ -555,6 +555,26 @@ async def run_mcp_cases(rep: Reporter, args: argparse.Namespace, contract_names:
             rep.check("type readback: txtInput contains 'e2e-type-42'", "e2e-type-42" in element_text(txt_typed), element_text(txt_typed))
         else:
             rep.fail("go_act type (txtInput disappeared)")
+
+        # --- go_act hotkey (SendInput chord; fixture records the key chord) ---
+        hot_pre = json_payload(await observe(session, window_id, include_screenshot=False)) or {}
+        hot_target = find_element(hot_pre, "txtInput")
+        if hot_target is not None:
+            hot_result = await act(
+                session,
+                "hotkey",
+                {"kind": "element", "index": int(hot_target["index"]), "state_id": str(hot_pre.get("state_id") or "")},
+                {"keys": "ctrl+s"},
+            )
+            rep.check("go_act hotkey(ctrl+s) success", is_query_ok(hot_result, allow_privacy_prefix=True), first_line(hot_result))
+            hot_receipt = action_receipt(hot_result)
+            rep.check("go_act hotkey dispatch_status=accepted", hot_receipt.get("dispatch_status") == "accepted", json.dumps(hot_receipt, ensure_ascii=False))
+            hot_after = json_payload(await observe(session, window_id, include_screenshot=False)) or {}
+            hot_label = find_element(hot_after, "lblHotkey")
+            hot_text = element_text(hot_label)
+            rep.check("hotkey oracle: fixture received ctrl+s", "ctrl" in hot_text and "s" in hot_text, hot_text)
+        else:
+            rep.fail("go_act hotkey (txtInput disappeared)")
 
         # --- D7 long value: set 500 chars, read back with max_value_chars=1000 ---
         long_pre = json_payload(await observe(session, window_id, include_screenshot=False)) or {}

@@ -45,7 +45,8 @@ public sealed record ActionPlan(
     string? TypeText = null,
     string? Key = null,
     string? ScrollDirection = null,
-    double ScrollPages = 1);
+    double ScrollPages = 1,
+    string? Hotkey = null);
 
 public sealed record VerificationInfo(string Status, string? Reason = null)
 {
@@ -116,11 +117,11 @@ public sealed record HitTestResult(
     string? ClassName);
 
 /// <summary>
-/// go_launch request. <paramref name="AllowAbsolutePath"/> is the local policy escape hatch
-/// (config launch.enforceAllowlist=false): when set, AppName may be an absolute existing .exe path
-/// instead of an allowlist name. Default false; the model-facing schema is unchanged.
+/// go_launch request. <paramref name="Target"/> is the app resolved by the platform catalog
+/// (desktop/start-menu shortcut, execution alias, or absolute executable path); when null the
+/// request activates an existing app via <paramref name="AppId"/>.
 /// </summary>
-public sealed record LaunchRequest(string? AppName, string? AppId, int WaitMs, bool AllowAbsolutePath = false);
+public sealed record LaunchRequest(LaunchTarget? Target, string? AppId, int WaitMs);
 
 public sealed record LaunchResult(
     bool Launched,

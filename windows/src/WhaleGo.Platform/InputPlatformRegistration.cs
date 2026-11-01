@@ -17,18 +17,10 @@ namespace WhaleGo.Platform;
 /// </summary>
 public static class InputPlatformRegistration
 {
-    /// <summary>Registers the input platform with an empty launch allowlist (go_launch will reject every name).</summary>
-    public static IServiceCollection AddInputPlatform(this IServiceCollection services) =>
-        AddInputPlatform(services, LaunchAllowlistOptions.Empty);
-
-    /// <summary>
-    /// Registers the input platform. T4 passes the config-derived launch allowlist through
-    /// <paramref name="options"/> (launch.allowlist); no Contracts change is required.
-    /// </summary>
-    public static IServiceCollection AddInputPlatform(this IServiceCollection services, LaunchAllowlistOptions options)
+    /// <summary>Registers the input platform. go_launch resolves apps through the installed-app catalog.</summary>
+    public static IServiceCollection AddInputPlatform(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
-        ArgumentNullException.ThrowIfNull(options);
 
         // Physical input primitives.
         services.TryAddSingleton<IInputLane, InputLane>();
@@ -50,9 +42,9 @@ public static class InputPlatformRegistration
         services.TryAddSingleton<IElementActionDispatcher, UiaActionExecutor>();
         services.TryAddSingleton<ICoordinateActionDispatcher, CoordinateDispatcher>();
 
-        // go_launch (allowlist is fixed at DI time).
+        // go_launch: no allowlist; desktop/start-menu shortcuts, execution aliases and App Paths are resolved on demand.
+        services.TryAddSingleton<IInstalledAppCatalog, InstalledAppCatalog>();
         services.TryAddSingleton<IAppLauncher>(provider => new AppLauncher(
-            options.Entries,
             provider.GetRequiredService<IWindowCatalog>(),
             provider.GetRequiredService<WindowActivator>()));
 
